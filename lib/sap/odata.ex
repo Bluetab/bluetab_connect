@@ -206,6 +206,7 @@ defmodule BluetabConnect.Sap.Odata do
     {:ok, %{client: client}}
   end
 
+  @impl true
   def handle_call(:get_client, _from, %{client: client} = state) do
     {:reply, client, state}
   end
