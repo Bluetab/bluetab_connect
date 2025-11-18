@@ -143,7 +143,6 @@ defmodule BluetabConnect.Sap.Soap.Proyectos do
          GetCalendarioResponse: %{
            GetCalendarioResult: %{
              ExecutionSuccess: "true",
-             FailureReason: %{},
              CalendarioVisible: %{
                Dias: days
              }
@@ -151,6 +150,32 @@ defmodule BluetabConnect.Sap.Soap.Proyectos do
          }
        }} ->
         {:ok, parse_days(days, user_id)}
+
+      {:ok,
+       %{
+         GetCalendarioResponse: %{
+           GetCalendarioResult: %{
+             ExecutionSuccess: "false",
+             FailureReason:
+               "Error al obtener el calendario de vacaciones: No se encuantra el empleado"
+           }
+         }
+       }} ->
+        {:error, :employee_not_found}
+
+      {:ok,
+       %{
+         GetCalendarioResponse: %{
+           GetCalendarioResult: %{
+             ExecutionSuccess: "false",
+             FailureReason: reason
+           }
+         }
+       }} ->
+        {:error, inspect(reason)}
+
+      {:error, :timeout} = error ->
+        error
 
       error ->
         Logger.error("Unexpected calendar response format: #{inspect(error)}")

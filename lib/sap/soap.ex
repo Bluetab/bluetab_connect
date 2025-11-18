@@ -22,12 +22,22 @@ defmodule BluetabConnect.Sap.Soap do
     GenServer.call(__MODULE__, {:get_wsdl, endpoint})
   end
 
+  @spec call(any(), any(), any()) :: {:error, any()} | {:ok, map()}
   def call(endpoint, action, params \\ %{}) do
-    with {:ok, wsdl, token} <- get_wsdl(endpoint),
+    with {:ok, wsdl, token, http_opts} <- get_wsdl(endpoint),
          {:ok, response} <-
-           Soap.call(wsdl, action, %{"request" => Map.put(params, "AuthenticationToken", token)}) do
+           Soap.call(
+             wsdl,
+             action,
+             %{"request" => Map.put(params, "AuthenticationToken", token)},
+             [],
+             http_opts
+           ) do
       {:ok, Soap.Response.parse(response)}
     else
+      {:error, _} = error ->
+        error
+
       error ->
         Logger.error("SAP -> Error calling #{endpoint}: #{inspect(error)}")
         {:error, error}
@@ -42,15 +52,18 @@ defmodule BluetabConnect.Sap.Soap do
   # GenServer Callbacks
   @impl true
   def handle_call({:get_wsdl, endpoint}, _from, state) do
+    timeout = state |> Map.get(:config) |> Keyword.get(:timeout, 30_000)
+    http_opts = [timeout: timeout, recv_timeout: timeout]
+
     with {:ok, token, %{config: config, wsdls: wsdls} = state} <- get_token(state) do
       case Map.get(wsdls, endpoint) do
         nil ->
           {:ok, wsdl} = init_wsdl(config, endpoint)
           wsdls = Map.put(wsdls, endpoint, wsdl)
-          {:reply, {:ok, wsdl, token}, Map.put(state, :wsdls, wsdls)}
+          {:reply, {:ok, wsdl, token, http_opts}, Map.put(state, :wsdls, wsdls)}
 
         wsdl ->
-          {:reply, {:ok, wsdl, token}, state}
+          {:reply, {:ok, wsdl, token, http_opts}, state}
       end
     else
       {:error, state} ->
