@@ -14,6 +14,31 @@ defmodule BluetabConnect.Px.Rest do
     GenServer.call(__MODULE__, :get_client)
   end
 
+  def list_employees(criteria \\ []) do
+      base_req = get_client()
+
+      url =
+        case criteria do
+          [{:employee_number, number}] ->
+            "/api/employees?employee_number=#{URI.encode_www_form(to_string(number))}"
+
+          [{:email, email}] ->
+            "/api/employees?email=#{URI.encode_www_form(email)}"
+
+          _ ->
+            "/api/employees"
+        end
+
+      case Req.get(base_req, url: url) do
+        {:ok, %{body: %{"employees" => employees}, status: 200}} ->
+          {:ok, employees}
+
+        err ->
+          Logger.error("Error listing employees: #{inspect(err)}")
+          {:error, :list_employees_error}
+      end
+    end
+
   def list_initiatives do
     base_req = get_client()
 
@@ -98,10 +123,3 @@ defmodule BluetabConnect.Px.Rest do
     {:reply, client, state}
   end
 end
-
-"""
-config = [
-base_url: "https://px.app.bluetab.net",
-bearer_token: "6u4Ie9TLHUEr0oFINekTEppI4gtWvr5YA4SnMQocteo"
-]
-"""
