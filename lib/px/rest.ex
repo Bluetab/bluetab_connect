@@ -104,6 +104,83 @@ defmodule BluetabConnect.Px.Rest do
     end
   end
 
+  @project_filter_keys ~w(status sap_id doc_num start_date_from start_date_to end_date_from end_date_to client_id owner)a
+  @project_pagination_keys ~w(page per_page)a
+
+  @doc """
+  Lists projects from the PX Projects API.
+
+  ## Options
+
+    * `:page` - Page number (default: 1)
+    * `:per_page` - Items per page (default: 100)
+    * `:status` - Filter by project status (e.g., "pst_Started", "pst_Closed")
+    * `:sap_id` - Filter by project AbsEntry (SAP identifier)
+    * `:doc_num` - Filter by project ID (DocNum from SAP)
+    * `:start_date_from` - Filter projects with start date from (format: YYYY-MM-DD)
+    * `:start_date_to` - Filter projects with start date to (format: YYYY-MM-DD)
+    * `:end_date_from` - Filter projects with end date from (format: YYYY-MM-DD)
+    * `:end_date_to` - Filter projects with end date to (format: YYYY-MM-DD)
+    * `:client_id` - Filter by client ID
+    * `:owner` - Filter by owner employee number
+    * `:fields` - List of additional fields to include (e.g., `[:client_id, :owner_name]`)
+
+  ## Examples
+
+      # Basic request - returns all projects with default pagination
+      BluetabConnect.Px.Rest.list_projects()
+
+      # With pagination and filters
+      BluetabConnect.Px.Rest.list_projects(page: 1, per_page: 20, status: "pst_Started")
+
+      # With field selection
+      BluetabConnect.Px.Rest.list_projects(fields: [:client_id, :owner_name, :financial_project])
+
+  ## Returns
+
+      {:ok, %{"projects" => [...], "pagination" => %{...}}}
+  """
+  def list_projects(opts \\ []) do
+    base_req = get_client()
+
+    query_params =
+      opts
+      |> Keyword.take(@project_pagination_keys ++ @project_filter_keys)
+      |> Enum.map(fn {k, v} -> {to_string(k), to_string(v)} end)
+
+    query_params =
+      case Keyword.get(opts, :fields) do
+        nil ->
+          query_params
+
+        fields when is_list(fields) ->
+          fields_str = fields |> Enum.map_join(",", &to_string/1)
+          [{"fields", fields_str} | query_params]
+
+        fields when is_binary(fields) ->
+          [{"fields", fields} | query_params]
+      end
+
+    url =
+      case query_params do
+        [] -> "/api/projects"
+        params -> "/api/projects?" <> URI.encode_query(params)
+      end
+
+    case Req.get(base_req, url: url) do
+      {:ok, %{body: %{"projects" => projects, "pagination" => pagination}, status: 200}} ->
+        {:ok, %{"projects" => projects, "pagination" => pagination}}
+
+      {:ok, %{body: %{"error" => reason}, status: 401}} ->
+        Logger.error("Unauthorized listing projects: #{reason}")
+        {:error, :unauthorized}
+
+      err ->
+        Logger.error("Error listing projects: #{inspect(err)}")
+        {:error, :list_projects_error}
+    end
+  end
+
   @impl true
   def init(config) do
     base_url = Keyword.fetch!(config, :base_url)
