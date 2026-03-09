@@ -104,6 +104,19 @@ defmodule BluetabConnect.Px.Rest do
     end
   end
 
+  def list_hour_types do
+    base_req = get_client()
+
+    case Req.get(base_req, url: "/api/hour-types") do
+      {:ok, %{body: %{"hour_types" => hour_types}, status: 200}} ->
+        {:ok, hour_types}
+
+      err ->
+        Logger.error("Error listing hour types: #{inspect(err)}")
+        {:error, :list_hour_types_error}
+    end
+  end
+
   @project_filter_keys ~w(status sap_id doc_num start_date_from start_date_to end_date_from end_date_to client_id owner)a
   @project_pagination_keys ~w(page per_page)a
 
