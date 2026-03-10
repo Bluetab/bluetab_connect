@@ -1,0 +1,601 @@
+service:
+  name: SCL.Addins.Bluetab.Proyectos Web Services
+  endpoint: http://192.168.10.11:4199/SCLWebServiceServer/SCL_Addins_Bluetab_Proyectos.asmx
+
+# ==========================================
+# ENUMERATIONS
+# ==========================================
+enums:
+  EstadoImputacion:
+    - Imputado
+    - Liberado
+    - Aprobado
+    - Rechazado
+    - Borrado
+
+  EstadoDia:
+    - NoImputado
+    - Imputado
+    - Completado
+    - Liberado
+    - Aprobado
+    - Rechazado
+    - Festivo
+
+  EstadoLiquidacion:
+    - Imputada
+    - Liberada
+    - Aprobada
+    - Rechazada
+    - Borrada
+    - Pagada
+    - PendienteFinanzas
+    - PendienteRRHH
+
+  ClaseGasto:
+    - Fijo
+    - Variable
+
+# ==========================================
+# BASE MODELS
+# ==========================================
+models:
+  HelperBase: {}
+
+  AbstractServiceRequest:
+    properties:
+      AuthenticationToken: string
+
+  AbstractServiceResponse:
+    properties:
+      ExecutionSuccess: boolean
+      FailureReason: string
+
+# ==========================================
+# DOMAIN MODELS
+# ==========================================
+  TipoHoras:
+    inherits: HelperBase
+    properties:
+      Id: string
+      Nombre: string
+      PorDefecto: boolean
+
+  Moneda:
+    inherits: HelperBase
+    properties:
+      Id: string
+      Nombre: string
+      ISO: string
+
+  Pais:
+    inherits: HelperBase
+    properties:
+      Id: string
+      Nombre: string
+
+  Proyecto:
+    inherits: HelperBase
+    properties:
+      Id: int
+      Nombre: string
+
+  Empleado:
+    inherits: HelperBase
+    properties:
+      Id: int
+      Nombre: string
+
+  ImputacionHoras:
+    inherits: HelperBase
+    properties:
+      Code: string
+      IdProyecto: int
+      NombreProyecto: string
+      IdEmpleado: int
+      NombreEmpleado: string
+      Dia: datetime
+      Horas: double
+      IdTipoHora: string
+      Comentario: string
+      Estado: EstadoImputacion
+      MotivoRechazo: string
+      Albaran: int
+      IdEmpleadoImp: int
+      Precontrato: string
+
+  Dia:
+    properties:
+      Fecha: datetime
+      Estado: EstadoDia
+      Festivo: boolean
+      Imputaciones: [ImputacionHoras]
+
+  Calendario:
+    inherits: HelperBase
+    properties:
+      DiaReferencia: datetime
+      Dias: [Dia]
+
+  Gasto:
+    inherits: HelperBase
+    properties:
+      Code: string
+      Line: int
+      IdProyecto: int
+      IdEmpleado: int
+      NombreEmpleado: string
+      Fecha: datetime
+      TipoGasto: string
+      NombreGasto: string
+      Comentario: string
+      Importe: double
+      Divisa: string
+      Cantidad: double
+      NombreJustificante: string
+      Justificante: string
+      CodeJustificante: string
+      Refacturar: boolean
+      Albaran: int
+
+  Liquidacion:
+    inherits: HelperBase
+    properties:
+      Code: string
+      Concepto: string
+      IdProyecto: int
+      NombreProyecto: string
+      IdEmpleado: int
+      NombreEmpleado: string
+      IdEmpleadoAprobacion: int
+      Fecha: datetime
+      Pais: string
+      NombrePais: string
+      Localidad: string
+      Comentario: string
+      Estado: EstadoLiquidacion
+      MotivoRechazo: string
+      Gastos: [Gasto]
+
+  TipoGasto:
+    inherits: HelperBase
+    properties:
+      Id: string
+      Nombre: string
+      Clase: ClaseGasto
+      Precio: double
+      Moneda: string
+
+  MotivoRechazo:
+    inherits: HelperBase
+    properties:
+      Id: string
+      Motivo: string
+      Custom: boolean
+
+  Refacturacion:
+    properties:
+      LineId: int
+      Refacturar: boolean
+
+  DatosAprobacion:
+    properties:
+      Codigo: string
+      Refacturaciones: [Refacturacion]
+
+  DatosRechazoLiquidacion:
+    properties:
+      Code: string
+      MotivoRechazo: string
+
+  JustificanteGasto:
+    inherits: HelperBase
+    properties:
+      Code: string
+      Justificante: string
+      NombreJustificante: string
+
+  Aviso:
+    inherits: HelperBase
+    properties:
+      Code: string
+      IdEmpleado: int
+      TextoMensaje: string
+      Leido: boolean
+      Enviado: boolean
+
+  FacturaCompraLinea:
+    properties:
+      ItemCode: string
+      Price: double
+      Quantity: double
+      ProjectCode: int
+
+  FacturaCompra:
+    properties:
+      CardCode: string
+      CardName: string
+      NumAtCard: string
+      DocDate: datetime
+      DocDueDate: datetime
+      DocTotal: double
+      Comments: string
+      DocBase64: string
+      Extension: string
+      Lineas: [FacturaCompraLinea]
+
+
+# ==========================================
+# REQUEST / RESPONSE PAYLOADS
+# ==========================================
+  # --- Authentication / User ---
+  LoginRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      UserMail: string
+      UserPassword: string
+  
+  LoginResponse:
+    inherits: AbstractServiceResponse
+    properties:
+      Id: int
+      Nombre: string
+      Roles: [string]
+      FechaSistema: datetime
+      HorasMaximas: double
+      PaisPorDefecto: string
+      LocalidadPorDefecto: string
+      LimiteMesesImputacionGastos: int
+      Moneda: string
+      TiposHoras: [TipoHoras]
+      Proyectos: [Proyecto]
+      MisProyectos: [Proyecto]
+      Paises: [Pais]
+      Monedas: [Moneda]
+
+  NewPasswordRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      UserId: int
+      UserPassword: string
+
+  NewPassword2Request:
+    inherits: AbstractServiceRequest
+    properties:
+      UserMail: string
+      NewUserPassword: string
+      OldUserPassword: string
+
+  # --- Imputaciones (Time Tracking) ---
+  SetImputacionesHorasRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      IdEmpleado: int
+      Imputaciones: [ImputacionHoras]
+      ImputacionPropia: boolean
+
+  SetLiberacionesHorasRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      IdEmpleado: int
+      Liberaciones: [ImputacionHoras]
+      ImputacionPropia: boolean
+
+  SetAprobacionesHorasRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      Aprobaciones: [ImputacionHoras]
+
+  SetRechazosHorasRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      Rechazos: [ImputacionHoras]
+
+  SetImputacionHorasRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      Imputacion: ImputacionHoras
+
+  SetImputacionHorasResponse:
+    inherits: AbstractServiceResponse
+    properties:
+      Imputacion: ImputacionHoras
+
+  GetCalendarioRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      UserId: int
+      Fecha: datetime
+
+  GetCalendarioResponse:
+    inherits: AbstractServiceResponse
+    properties:
+      CalendarioVisible: Calendario
+
+  # --- Approvals & HR ---
+  GetUsuariosParaRRHHRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      UserId: int
+
+  GetUsuariosAprobarRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      UserId: int
+
+  GetProyectosAprobarRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      UserId: int
+
+  GetImputacionesHorasAprobarRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      UserId: int
+      UserFilter: int
+      ProjectFilter: int
+
+  # --- Expenses (Gastos / Liquidaciones) ---
+  GetLiquidacionesGastosRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      UserId: int
+
+  GetCabecerasLiquidacionesRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      UserId: int
+
+  GetLiquidacionGastosRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      Code: string
+
+  GetLiquidacionGastosResponse:
+    inherits: AbstractServiceResponse
+    properties:
+      Liquidacion: Liquidacion
+
+  SetLiquidacionGastosRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      Liquidacion: Liquidacion
+
+  SetLiquidacionGastosResponse:
+    inherits: AbstractServiceResponse
+    properties:
+      Liquidacion: Liquidacion
+
+  SetLiberacionesLiquidacionesRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      Liberaciones: [string]
+
+  GetLiquidacionesGastosAprobarRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      UserId: int
+      UserFilter: int
+      ProjectFilter: int
+
+  SetAprobacionesLiquidacionesRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      UserId: int
+      Aprobaciones: [DatosAprobacion]
+
+  SetRechazosLiquidacionesRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      Rechazos: [DatosRechazoLiquidacion]
+
+  GetJustificanteRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      Code: string
+
+  GetJustificanteResponse:
+    inherits: AbstractServiceResponse
+    properties:
+      Justificante: JustificanteGasto
+
+  SetJustificanteRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      Justificante: JustificanteGasto
+
+  SetJustificanteResponse:
+    inherits: AbstractServiceResponse
+    properties:
+      Code: string
+
+  GetHojaGastosRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      UserId: int
+      FromDate: datetime
+      ToDate: datetime
+
+  GetHojaGastosResponse:
+    inherits: AbstractServiceResponse
+    properties:
+      Base64String: string
+      FileName: string
+
+  CreateLiquidacionGastosRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      Usuario: string
+      Password: string
+      Liquidacion: Liquidacion
+
+  CreateLiquidacionGastosResponse:
+    inherits: AbstractServiceResponse
+    properties:
+      Code: string
+
+  # --- Master Data & Misc ---
+  GetFastagMasterDataRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      Usuario: string
+      Password: string
+
+  GetFastagMasterDataResponse:
+    inherits: AbstractServiceResponse
+    properties:
+      PaisPorDefecto: string
+      LocalidadPorDefecto: string
+      Moneda: string
+      Proyectos: [Proyecto]
+      MisProyectos: [Proyecto]
+      Monedas: [Moneda]
+      Gastos: [TipoGasto]
+
+  GetMisAvisosRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      UserId: int
+
+  SetAvisosLeidosRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      Avisos: [string]
+
+  CreateFacturaCompraRequest:
+    inherits: AbstractServiceRequest
+    properties:
+      FacturaCompra: FacturaCompra
+
+  CreateFacturaCompraResponse:
+    inherits: AbstractServiceResponse
+    properties:
+      DocNum: int
+
+# ==========================================
+# OPERATIONS (ENDPOINTS)
+# ==========================================
+operations:
+  # Auth
+  Login:
+    request: LoginRequest
+    response: LoginResponse
+  NewPassword:
+    request: NewPasswordRequest
+    response: AbstractServiceResponse # Empty extension
+  NewPassword2:
+    request: NewPassword2Request
+    response: AbstractServiceResponse # Empty extension
+
+  # Imputaciones (Time Tracking)
+  GetCalendario:
+    request: GetCalendarioRequest
+    response: GetCalendarioResponse
+  SetImputacionesHoras:
+    request: SetImputacionesHorasRequest
+    response: AbstractServiceResponse
+  SetLiberacionesHoras:
+    request: SetLiberacionesHorasRequest
+    response: AbstractServiceResponse
+  SetAprobacionesHoras:
+    request: SetAprobacionesHorasRequest
+    response: AbstractServiceResponse
+  SetRechazosHoras:
+    request: SetRechazosHorasRequest
+    response: AbstractServiceResponse
+  SetImputacionHoras:
+    request: SetImputacionHorasRequest
+    response: SetImputacionHorasResponse
+
+  # Approvals & HR Data
+  GetUsuariosParaRRHH:
+    request: GetUsuariosParaRRHHRequest
+    response: { inherits: AbstractServiceResponse, properties: { Usuarios: [Empleado] } }
+  GetUsuariosAprobar:
+    request: GetUsuariosAprobarRequest
+    response: { inherits: AbstractServiceResponse, properties: { Usuarios: [Empleado] } }
+  GetProyectosAprobar:
+    request: GetProyectosAprobarRequest
+    response: { inherits: AbstractServiceResponse, properties: { Proyectos: [Proyecto] } }
+  GetImputacionesHorasAprobar:
+    request: GetImputacionesHorasAprobarRequest
+    response: { inherits: AbstractServiceResponse, properties: { Imputaciones: [ImputacionHoras] } }
+
+  # Master Data
+  GetTiposHoras:
+    request: AbstractServiceRequest
+    response: { inherits: AbstractServiceResponse, properties: { TiposHoras: [TipoHoras] } }
+  GetProyectos:
+    request: AbstractServiceRequest
+    response: { inherits: AbstractServiceResponse, properties: { Proyectos: [Proyecto] } }
+  GetMisProyectos:
+    request: AbstractServiceRequest
+    response: { inherits: AbstractServiceResponse, properties: { Proyectos: [Proyecto] } }
+  GetPaises:
+    request: AbstractServiceRequest
+    response: { inherits: AbstractServiceResponse, properties: { Paises: [Pais] } }
+  GetMonedas:
+    request: AbstractServiceRequest
+    response: { inherits: AbstractServiceResponse, properties: { Monedas: [Moneda] } }
+  GetTiposGasto:
+    request: AbstractServiceRequest
+    response: { inherits: AbstractServiceResponse, properties: { Gastos: [TipoGasto] } }
+  GetMotivosRechazo:
+    request: AbstractServiceRequest
+    response: { inherits: AbstractServiceResponse, properties: { Motivos: [MotivoRechazo] } }
+  GetFastagMasterData:
+    request: GetFastagMasterDataRequest
+    response: GetFastagMasterDataResponse
+
+  # Expenses (Liquidaciones / Gastos)
+  GetLiquidacionesGastos:
+    request: GetLiquidacionesGastosRequest
+    response: { inherits: AbstractServiceResponse, properties: { Liquidaciones: [Liquidacion] } }
+  GetCabecerasLiquidaciones:
+    request: GetCabecerasLiquidacionesRequest
+    response: { inherits: AbstractServiceResponse, properties: { Liquidaciones: [Liquidacion] } }
+  GetLiquidacionGastos:
+    request: GetLiquidacionGastosRequest
+    response: GetLiquidacionGastosResponse
+  SetLiquidacionGastos:
+    request: SetLiquidacionGastosRequest
+    response: SetLiquidacionGastosResponse
+  SetLiberacionesLiquidaciones:
+    request: SetLiberacionesLiquidacionesRequest
+    response: AbstractServiceResponse
+  GetLiquidacionesGastosAprobar:
+    request: GetLiquidacionesGastosAprobarRequest
+    response: { inherits: AbstractServiceResponse, properties: { Liquidaciones: [Liquidacion] } }
+  SetAprobacionesLiquidaciones:
+    request: SetAprobacionesLiquidacionesRequest
+    response: AbstractServiceResponse
+  SetRechazosLiquidaciones:
+    request: SetRechazosLiquidacionesRequest
+    response: AbstractServiceResponse
+  CreateLiquidacionGastos:
+    request: CreateLiquidacionGastosRequest
+    response: CreateLiquidacionGastosResponse
+
+  # File / Justificantes
+  GetJustificante:
+    request: GetJustificanteRequest
+    response: GetJustificanteResponse
+  SetJustificante:
+    request: SetJustificanteRequest
+    response: SetJustificanteResponse
+  GetHojaGastos:
+    request: GetHojaGastosRequest
+    response: GetHojaGastosResponse
+
+  # Facturas / Invoices
+  CreateFacturaCompra:
+    request: CreateFacturaCompraRequest
+    response: CreateFacturaCompraResponse
+
+  # Avisos / Notifications
+  GetMisAvisos:
+    request: GetMisAvisosRequest
+    response: { inherits: AbstractServiceResponse, properties: { Avisos: [Aviso] } }
+  SetAvisosLeidos:
+    request: SetAvisosLeidosRequest
+    response: AbstractServiceResponse

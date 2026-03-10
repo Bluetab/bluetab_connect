@@ -296,6 +296,43 @@ defmodule BluetabConnect.Sap.Soap.Proyectos do
     end
   end
 
+  @doc """
+  Gets available expense types.
+
+  Returns: {:ok, [expense_type_data]}
+  """
+  def get_tipos_gasto do
+    case Soap.call(@endpoint, "GetTiposGasto") do
+      {:ok,
+       %{
+         GetTiposGastoResponse: %{
+           GetTiposGastoResult: %{
+             ExecutionSuccess: "true",
+             Gastos: tipos_gasto
+           }
+         }
+       }} ->
+        tipos_gasto
+        |> parse_collection(&parse_tipo_gasto/1)
+        |> then(&{:ok, &1})
+
+      {:ok,
+       %{
+         GetTiposGastoResponse: %{
+           GetTiposGastoResult: %{
+             ExecutionSuccess: "false",
+             FailureReason: reason
+           }
+         }
+       }} ->
+        {:error, inspect(reason)}
+
+      error ->
+        Logger.error("Unexpected expense types response format: #{inspect(error)}")
+        {:error, :invalid_expense_types_response}
+    end
+  end
+
   # User Management Operations
 
   @doc """
@@ -341,4 +378,480 @@ defmodule BluetabConnect.Sap.Soap.Proyectos do
         {:error, error}
     end
   end
+
+  # Expense Management Operations
+
+  @doc """
+  Gets expense settlements for a user.
+
+  Parameters:
+  - user_id: User ID for whom settlements are requested
+  """
+  def get_liquidaciones_gastos(user_id) do
+    params = %{
+      "UserId" => user_id
+    }
+
+    case Soap.call(@endpoint, "GetLiquidacionesGastos", params) do
+      {:ok,
+       %{
+         GetLiquidacionesGastosResponse: %{
+           GetLiquidacionesGastosResult: %{
+             ExecutionSuccess: "true",
+             Liquidaciones: liquidaciones
+           }
+         }
+       }} ->
+        liquidaciones
+        |> parse_collection(&parse_liquidacion/1)
+        |> then(&{:ok, &1})
+
+      {:ok,
+       %{
+         GetLiquidacionesGastosResponse: %{
+           GetLiquidacionesGastosResult: %{
+             ExecutionSuccess: "false",
+             FailureReason: reason
+           }
+         }
+       }} ->
+        {:error, inspect(reason)}
+
+      error ->
+        Logger.error("Unexpected expense settlements response format: #{inspect(error)}")
+        {:error, :invalid_expense_settlements_response}
+    end
+  end
+
+  @doc """
+  Gets expense settlement headers for a user.
+
+  Parameters:
+  - user_id: User ID for whom settlement headers are requested
+  """
+  def get_cabeceras_liquidaciones(user_id) do
+    params = %{
+      "UserId" => user_id
+    }
+
+    case Soap.call(@endpoint, "GetCabecerasLiquidaciones", params) do
+      {:ok,
+       %{
+         GetCabecerasLiquidacionesResponse: %{
+           GetCabecerasLiquidacionesResult: %{
+             ExecutionSuccess: "true",
+             Liquidaciones: liquidaciones
+           }
+         }
+       }} ->
+        liquidaciones
+        |> parse_collection(&parse_liquidacion/1)
+        |> then(&{:ok, &1})
+
+      {:ok,
+       %{
+         GetCabecerasLiquidacionesResponse: %{
+           GetCabecerasLiquidacionesResult: %{
+             ExecutionSuccess: "false",
+             FailureReason: reason
+           }
+         }
+       }} ->
+        {:error, inspect(reason)}
+
+      error ->
+        Logger.error("Unexpected expense headers response format: #{inspect(error)}")
+        {:error, :invalid_expense_headers_response}
+    end
+  end
+
+  @doc """
+  Gets a single expense settlement by code.
+
+  Parameters:
+  - code: Settlement code
+  """
+  def get_liquidacion_gastos(code) do
+    params = %{
+      "Code" => code
+    }
+
+    case Soap.call(@endpoint, "GetLiquidacionGastos", params) do
+      {:ok,
+       %{
+         GetLiquidacionGastosResponse: %{
+           GetLiquidacionGastosResult: %{
+             ExecutionSuccess: "true",
+             Liquidacion: liquidacion
+           }
+         }
+       }} ->
+        {:ok, parse_liquidacion(liquidacion)}
+
+      {:ok,
+       %{
+         GetLiquidacionGastosResponse: %{
+           GetLiquidacionGastosResult: %{
+             ExecutionSuccess: "false",
+             FailureReason: reason
+           }
+         }
+       }} ->
+        {:error, inspect(reason)}
+
+      error ->
+        Logger.error("Unexpected expense settlement response format: #{inspect(error)}")
+        {:error, :invalid_expense_settlement_response}
+    end
+  end
+
+  @doc """
+  Creates or updates an expense settlement.
+
+  Parameters:
+  - liquidacion: Settlement payload map
+  """
+  def set_liquidacion_gastos(liquidacion) do
+    params = %{
+      "Liquidacion" => liquidacion
+    }
+
+    case Soap.call(@endpoint, "SetLiquidacionGastos", params) do
+      {:ok, response} ->
+        {:ok, response}
+
+      error ->
+        {:error, error}
+    end
+  end
+
+  @doc """
+  Submits multiple settlements for release.
+
+  Parameters:
+  - liberaciones: List of settlement codes
+  """
+  def set_liberaciones_liquidaciones(liberaciones) do
+    params = %{
+      "Liberaciones" => Enum.map(liberaciones, &%{"string" => &1})
+    }
+
+    case Soap.call(@endpoint, "SetLiberacionesLiquidaciones", params) do
+      {:ok, response} ->
+        {:ok, response}
+
+      error ->
+        {:error, error}
+    end
+  end
+
+  @doc """
+  Gets settlements pending approval using filters.
+
+  Parameters:
+  - user_id: Approver user ID
+  - user_filter: Employee filter
+  - project_filter: Project filter
+  """
+  def get_liquidaciones_gastos_aprobar(user_id, user_filter, project_filter) do
+    params = %{
+      "UserId" => user_id,
+      "UserFilter" => user_filter,
+      "ProjectFilter" => project_filter
+    }
+
+    case Soap.call(@endpoint, "GetLiquidacionesGastosAprobar", params) do
+      {:ok,
+       %{
+         GetLiquidacionesGastosAprobarResponse: %{
+           GetLiquidacionesGastosAprobarResult: %{
+             ExecutionSuccess: "true",
+             Liquidaciones: liquidaciones
+           }
+         }
+       }} ->
+        liquidaciones
+        |> parse_collection(&parse_liquidacion/1)
+        |> then(&{:ok, &1})
+
+      {:ok,
+       %{
+         GetLiquidacionesGastosAprobarResponse: %{
+           GetLiquidacionesGastosAprobarResult: %{
+             ExecutionSuccess: "false",
+             FailureReason: reason
+           }
+         }
+       }} ->
+        {:error, inspect(reason)}
+
+      error ->
+        Logger.error("Unexpected expense approvals response format: #{inspect(error)}")
+        {:error, :invalid_expense_approvals_response}
+    end
+  end
+
+  @doc """
+  Approves settlements with optional refactoring flags.
+
+  Parameters:
+  - user_id: Approver user ID
+  - aprobaciones: List of approval payloads
+  """
+  def set_aprobaciones_liquidaciones(user_id, aprobaciones) do
+    params = %{
+      "UserId" => user_id,
+      "Aprobaciones" => Enum.map(aprobaciones, &%{"DatosAprobacion" => &1})
+    }
+
+    case Soap.call(@endpoint, "SetAprobacionesLiquidaciones", params) do
+      {:ok, response} ->
+        {:ok, response}
+
+      error ->
+        {:error, error}
+    end
+  end
+
+  @doc """
+  Rejects settlements with a rejection reason.
+
+  Parameters:
+  - rechazos: List of rejection payloads
+  """
+  def set_rechazos_liquidaciones(rechazos) do
+    params = %{
+      "Rechazos" => Enum.map(rechazos, &%{"DatosRechazoLiquidacion" => &1})
+    }
+
+    case Soap.call(@endpoint, "SetRechazosLiquidaciones", params) do
+      {:ok, response} ->
+        {:ok, response}
+
+      error ->
+        {:error, error}
+    end
+  end
+
+  @doc """
+  Gets an expense attachment by code.
+
+  Parameters:
+  - code: Attachment code
+  """
+  def get_justificante(code) do
+    params = %{
+      "Code" => code
+    }
+
+    case Soap.call(@endpoint, "GetJustificante", params) do
+      {:ok,
+       %{
+         GetJustificanteResponse: %{
+           GetJustificanteResult: %{
+             ExecutionSuccess: "true",
+             Justificante: justificante
+           }
+         }
+       }} ->
+        {:ok, parse_justificante(justificante)}
+
+      {:ok,
+       %{
+         GetJustificanteResponse: %{
+           GetJustificanteResult: %{
+             ExecutionSuccess: "false",
+             FailureReason: reason
+           }
+         }
+       }} ->
+        {:error, inspect(reason)}
+
+      error ->
+        Logger.error("Unexpected expense attachment response format: #{inspect(error)}")
+        {:error, :invalid_expense_attachment_response}
+    end
+  end
+
+  @doc """
+  Creates or updates an expense attachment.
+
+  Parameters:
+  - justificante: Attachment payload map
+  """
+  def set_justificante(justificante) do
+    params = %{
+      "Justificante" => justificante
+    }
+
+    case Soap.call(@endpoint, "SetJustificante", params) do
+      {:ok, response} ->
+        {:ok, response}
+
+      error ->
+        {:error, error}
+    end
+  end
+
+  @doc """
+  Gets an expense report file for a user and date range.
+
+  Parameters:
+  - user_id: User ID
+  - from_date: Start date (YYYY-MM-DD)
+  - to_date: End date (YYYY-MM-DD)
+  """
+  def get_hoja_gastos(user_id, from_date, to_date) do
+    params = %{
+      "UserId" => user_id,
+      "FromDate" => from_date,
+      "ToDate" => to_date
+    }
+
+    case Soap.call(@endpoint, "GetHojaGastos", params) do
+      {:ok,
+       %{
+         GetHojaGastosResponse: %{
+           GetHojaGastosResult: %{
+             ExecutionSuccess: "true",
+             Base64String: base64,
+             FileName: file_name
+           }
+         }
+       }} ->
+        {:ok, %{base64_string: base64, file_name: file_name}}
+
+      {:ok,
+       %{
+         GetHojaGastosResponse: %{
+           GetHojaGastosResult: %{
+             ExecutionSuccess: "false",
+             FailureReason: reason
+           }
+         }
+       }} ->
+        {:error, inspect(reason)}
+
+      error ->
+        Logger.error("Unexpected expense report response format: #{inspect(error)}")
+        {:error, :invalid_expense_report_response}
+    end
+  end
+
+  @doc """
+  Creates an expense settlement with explicit credentials.
+
+  Parameters:
+  - usuario: Fastag user
+  - password: Fastag password
+  - liquidacion: Settlement payload map
+  """
+  def create_liquidacion_gastos(usuario, password, liquidacion) do
+    params = %{
+      "Usuario" => usuario,
+      "Password" => password,
+      "Liquidacion" => liquidacion
+    }
+
+    case Soap.call(@endpoint, "CreateLiquidacionGastos", params) do
+      {:ok, response} ->
+        {:ok, response}
+
+      error ->
+        {:error, error}
+    end
+  end
+
+  defp parse_collection(collection, mapper) when is_list(collection),
+    do: Enum.map(collection, mapper)
+
+  defp parse_collection(%{} = collection, mapper),
+    do: collection |> Map.to_list() |> Enum.map(mapper)
+
+  defp parse_collection(_, _mapper), do: []
+
+  defp parse_liquidacion({_, liquidacion}), do: parse_liquidacion(liquidacion)
+
+  defp parse_liquidacion(%{} = liquidacion) do
+    %{
+      code: value(liquidacion, :Code),
+      concept: value(liquidacion, :Concepto),
+      project_id: value(liquidacion, :IdProyecto),
+      project_name: value(liquidacion, :NombreProyecto),
+      employee_id: value(liquidacion, :IdEmpleado),
+      employee_name: value(liquidacion, :NombreEmpleado),
+      approver_employee_id: value(liquidacion, :IdEmpleadoAprobacion),
+      date: value(liquidacion, :Fecha),
+      country: value(liquidacion, :Pais),
+      country_name: value(liquidacion, :NombrePais),
+      locality: value(liquidacion, :Localidad),
+      comment: value(liquidacion, :Comentario),
+      status: value(liquidacion, :Estado),
+      reject_reason: value(liquidacion, :MotivoRechazo),
+      expenses: value(liquidacion, :Gastos) |> parse_collection(&parse_gasto/1)
+    }
+  end
+
+  defp parse_liquidacion(_), do: %{}
+
+  defp parse_gasto({_, gasto}), do: parse_gasto(gasto)
+
+  defp parse_gasto(%{} = gasto) do
+    %{
+      code: value(gasto, :Code),
+      line: value(gasto, :Line),
+      project_id: value(gasto, :IdProyecto),
+      employee_id: value(gasto, :IdEmpleado),
+      employee_name: value(gasto, :NombreEmpleado),
+      date: value(gasto, :Fecha),
+      expense_type: value(gasto, :TipoGasto),
+      expense_name: value(gasto, :NombreGasto),
+      comment: value(gasto, :Comentario),
+      amount: value(gasto, :Importe),
+      currency: value(gasto, :Divisa),
+      quantity: value(gasto, :Cantidad),
+      receipt_name: value(gasto, :NombreJustificante),
+      receipt: value(gasto, :Justificante),
+      receipt_code: value(gasto, :CodeJustificante),
+      rebill: parse_boolean(value(gasto, :Refacturar)),
+      albaran: value(gasto, :Albaran)
+    }
+  end
+
+  defp parse_gasto(_), do: %{}
+
+  defp parse_justificante({_, justificante}), do: parse_justificante(justificante)
+
+  defp parse_justificante(%{} = justificante) do
+    %{
+      code: value(justificante, :Code),
+      receipt: value(justificante, :Justificante),
+      receipt_name: value(justificante, :NombreJustificante)
+    }
+  end
+
+  defp parse_justificante(_), do: %{}
+
+  defp parse_tipo_gasto({_, tipo_gasto}), do: parse_tipo_gasto(tipo_gasto)
+
+  defp parse_tipo_gasto(%{} = tipo_gasto) do
+    %{
+      code: value(tipo_gasto, :Id),
+      name: value(tipo_gasto, :Nombre),
+      class: value(tipo_gasto, :Clase),
+      price: value(tipo_gasto, :Precio),
+      currency: value(tipo_gasto, :Moneda)
+    }
+  end
+
+  defp parse_tipo_gasto(_), do: %{}
+
+  defp value(map, key) when is_map(map) and is_atom(key),
+    do: Map.get(map, key) || Map.get(map, Atom.to_string(key))
+
+  defp parse_boolean(true), do: true
+  defp parse_boolean(false), do: false
+  defp parse_boolean("true"), do: true
+  defp parse_boolean("false"), do: false
+  defp parse_boolean(_), do: nil
 end

@@ -1,0 +1,69 @@
+info:
+  name: create_liquidacion_gastos
+  type: http
+  seq: 22
+
+http:
+  method: POST
+  url: "{{sap_soap_url}}/{{endpoint}}"
+  headers:
+    - name: SOAPAction
+      value: http://SCL/SCL.Addins.Bluetab.Proyectos/WebServices/CreateLiquidacionGastos
+    - name: Content-Type
+      value: text/xml;charset=utf-8
+  body:
+    type: xml
+    data: |-
+      <?xml version="1.0" encoding="UTF-8"?>
+      <env:Envelope xmlns:env="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <env:Header/>
+          <env:Body>
+              <CreateLiquidacionGastos xmlns="http://SCL/SCL.Addins.Bluetab.Proyectos/WebServices">
+                  <request>
+                      <AuthenticationToken>{{sap_soap_token}}</AuthenticationToken>
+                      <Usuario>{{usuario}}</Usuario>
+                      <Password>{{password}}</Password>
+                      <Liquidacion>
+                          <Code>{{code}}</Code>
+                          <Concepto>{{concepto}}</Concepto>
+                          <IdProyecto>{{id_proyecto}}</IdProyecto>
+                          <IdEmpleado>{{id_empleado}}</IdEmpleado>
+                          <Fecha>{{fecha}}</Fecha>
+                          <Pais>{{pais}}</Pais>
+                          <Localidad>{{localidad}}</Localidad>
+                          <Comentario>{{comentario}}</Comentario>
+                      </Liquidacion>
+                  </request>
+              </CreateLiquidacionGastos>
+          </env:Body>
+      </env:Envelope>
+  auth: inherit
+
+runtime:
+  variables:
+    - name: usuario
+      value: ""
+    - name: password
+      value: ""
+    - name: code
+      value: ""
+    - name: concepto
+      value: ""
+    - name: id_proyecto
+      value: ""
+    - name: id_empleado
+      value: ""
+    - name: fecha
+      value: ""
+    - name: pais
+      value: ""
+    - name: localidad
+      value: ""
+    - name: comentario
+      value: ""
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,97 @@
+info:
+  name: set_liquidacion_gastos
+  type: http
+  seq: 14
+
+http:
+  method: POST
+  url: "{{sap_soap_url}}/{{endpoint}}"
+  headers:
+    - name: SOAPAction
+      value: http://SCL/SCL.Addins.Bluetab.Proyectos/WebServices/SetLiquidacionGastos
+    - name: Content-Type
+      value: text/xml;charset=utf-8
+  body:
+    type: xml
+    data: |-
+      <?xml version="1.0" encoding="UTF-8"?>
+      <env:Envelope xmlns:env="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <env:Header/>
+          <env:Body>
+              <SetLiquidacionGastos xmlns="http://SCL/SCL.Addins.Bluetab.Proyectos/WebServices">
+                  <request>
+                      <AuthenticationToken>{{sap_soap_token}}</AuthenticationToken>
+                      <Liquidacion>
+                          <Code>{{code}}</Code>
+                          <Concepto>{{concepto}}</Concepto>
+                          <IdProyecto>{{id_proyecto}}</IdProyecto>
+                          <IdEmpleado>{{id_empleado}}</IdEmpleado>
+                          <IdEmpleadoAprobacion>{{id_empleado_aprobacion}}</IdEmpleadoAprobacion>
+                          <Fecha>{{fecha}}</Fecha>
+                          <Pais>{{pais}}</Pais>
+                          <Localidad>{{localidad}}</Localidad>
+                          <Comentario>{{comentario}}</Comentario>
+                          <Estado>{{estado}}</Estado>
+                          <Gastos>
+                              <Gasto>
+                                  <Line>{{line}}</Line>
+                                  <TipoGasto>{{tipo_gasto}}</TipoGasto>
+                                  <Comentario>{{gasto_comentario}}</Comentario>
+                                  <Importe>{{importe}}</Importe>
+                                  <Divisa>{{divisa}}</Divisa>
+                                  <Cantidad>{{cantidad}}</Cantidad>
+                                  <Refacturar>{{refacturar}}</Refacturar>
+                                  <Albaran>{{albaran}}</Albaran>
+                              </Gasto>
+                          </Gastos>
+                      </Liquidacion>
+                  </request>
+              </SetLiquidacionGastos>
+          </env:Body>
+      </env:Envelope>
+  auth: inherit
+
+runtime:
+  variables:
+    - name: code
+      value: ""
+    - name: concepto
+      value: ""
+    - name: id_proyecto
+      value: ""
+    - name: id_empleado
+      value: ""
+    - name: id_empleado_aprobacion
+      value: ""
+    - name: fecha
+      value: ""
+    - name: pais
+      value: ""
+    - name: localidad
+      value: ""
+    - name: comentario
+      value: ""
+    - name: estado
+      value: Imputada
+    - name: line
+      value: "1"
+    - name: tipo_gasto
+      value: ""
+    - name: gasto_comentario
+      value: ""
+    - name: importe
+      value: "0"
+    - name: divisa
+      value: EUR
+    - name: cantidad
+      value: "1"
+    - name: refacturar
+      value: "false"
+    - name: albaran
+      value: ""
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

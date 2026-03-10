@@ -1,0 +1,57 @@
+info:
+  name: set_aprobaciones_liquidaciones
+  type: http
+  seq: 17
+
+http:
+  method: POST
+  url: "{{sap_soap_url}}/{{endpoint}}"
+  headers:
+    - name: SOAPAction
+      value: http://SCL/SCL.Addins.Bluetab.Proyectos/WebServices/SetAprobacionesLiquidaciones
+    - name: Content-Type
+      value: text/xml;charset=utf-8
+  body:
+    type: xml
+    data: |-
+      <?xml version="1.0" encoding="UTF-8"?>
+      <env:Envelope xmlns:env="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <env:Header/>
+          <env:Body>
+              <SetAprobacionesLiquidaciones xmlns="http://SCL/SCL.Addins.Bluetab.Proyectos/WebServices">
+                  <request>
+                      <AuthenticationToken>{{sap_soap_token}}</AuthenticationToken>
+                      <UserId>{{user_id}}</UserId>
+                      <Aprobaciones>
+                          <DatosAprobacion>
+                              <Codigo>{{codigo}}</Codigo>
+                              <Refacturaciones>
+                                  <Refacturacion>
+                                      <LineId>{{line_id}}</LineId>
+                                      <Refacturar>{{refacturar}}</Refacturar>
+                                  </Refacturacion>
+                              </Refacturaciones>
+                          </DatosAprobacion>
+                      </Aprobaciones>
+                  </request>
+              </SetAprobacionesLiquidaciones>
+          </env:Body>
+      </env:Envelope>
+  auth: inherit
+
+runtime:
+  variables:
+    - name: user_id
+      value: ""
+    - name: codigo
+      value: ""
+    - name: line_id
+      value: "1"
+    - name: refacturar
+      value: "false"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
