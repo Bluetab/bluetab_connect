@@ -94,6 +94,7 @@ if Code.ensure_loaded?(Igniter) do
 
           igniter
           |> add_runtime_configs(connectors, app_name)
+          |> add_soap_globals_config(connectors)
           |> add_application_children(connectors, app_name)
           |> add_install_notice(connectors)
       end
@@ -120,6 +121,30 @@ if Code.ensure_loaded?(Igniter) do
           Rewrite.Source.update(source, :content, content)
         end
       end)
+    end
+
+    defp add_soap_globals_config(igniter, connectors) do
+      if "sap_soap" in connectors do
+        Igniter.update_file(igniter, "config/config.exs", fn source ->
+          content = Rewrite.Source.get(source, :content)
+
+          if soap_globals_config_exists?(content) do
+            source
+          else
+            content =
+              String.trim_trailing(content) <>
+                "\n\nconfig :soap, :globals, version: \"1.1\"\n"
+
+            Rewrite.Source.update(source, :content, content)
+          end
+        end)
+      else
+        igniter
+      end
+    end
+
+    defp soap_globals_config_exists?(content) do
+      Regex.match?(~r/config\s+:soap,\s+:globals,\s*version:\s*"1\.1"/, content)
     end
 
     defp runtime_config_exists?(content, connector, app_name) do
