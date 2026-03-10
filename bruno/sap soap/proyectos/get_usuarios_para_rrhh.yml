@@ -1,0 +1,40 @@
+info:
+  name: get_usuarios_para_rrhh
+  type: http
+  seq: 9
+
+http:
+  method: POST
+  url: "{{sap_soap_url}}/{{endpoint}}"
+  headers:
+    - name: SOAPAction
+      value: http://SCL/SCL.Addins.Bluetab.Proyectos/WebServices/GetUsuariosParaRRHH
+    - name: Content-Type
+      value: text/xml;charset=utf-8
+  body:
+    type: xml
+    data: |-
+      <?xml version="1.0" encoding="UTF-8"?>
+      <env:Envelope xmlns:env="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <env:Header/>
+          <env:Body>
+              <GetUsuariosParaRRHH xmlns="http://SCL/SCL.Addins.Bluetab.Proyectos/WebServices">
+                  <request>
+                      <AuthenticationToken>{{sap_soap_token}}</AuthenticationToken>
+                      <UserId>{{user_id}}</UserId>
+                  </request>
+              </GetUsuariosParaRRHH>
+          </env:Body>
+      </env:Envelope>
+  auth: inherit
+
+runtime:
+  variables:
+    - name: user_id
+      value: ""
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

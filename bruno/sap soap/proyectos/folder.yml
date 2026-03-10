@@ -1,0 +1,10 @@
+info:
+  name: proyectos
+  type: folder
+  seq: 1
+
+request:
+  auth: inherit
+  variables:
+    - name: endpoint
+      value: SCL_Addins_Bluetab_Proyectos.asmx

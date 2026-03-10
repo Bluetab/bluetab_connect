@@ -1,0 +1,6 @@
+name: px_prod
+variables:
+  - name: px_url
+    value: https://px.app.bluetab.net
+  - secret: true
+    name: px_token

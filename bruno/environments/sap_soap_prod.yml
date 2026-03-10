@@ -1,0 +1,6 @@
+name: sap_soap_prod
+variables:
+  - name: sap_soap_url
+    value: http://192.168.10.11:4199/SCLWebServiceServer/
+  - secret: true
+    name: sap_soap_token
