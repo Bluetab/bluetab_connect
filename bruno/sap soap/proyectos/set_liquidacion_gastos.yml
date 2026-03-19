@@ -21,30 +21,40 @@ http:
               <SetLiquidacionGastos xmlns="http://SCL/SCL.Addins.Bluetab.Proyectos/WebServices">
                   <request>
                       <AuthenticationToken>{{sap_soap_token}}</AuthenticationToken>
-                      <Liquidacion>
-                          <Code>{{code}}</Code>
-                          <Concepto>{{concepto}}</Concepto>
-                          <IdProyecto>{{id_proyecto}}</IdProyecto>
-                          <IdEmpleado>{{id_empleado}}</IdEmpleado>
-                          <IdEmpleadoAprobacion>{{id_empleado_aprobacion}}</IdEmpleadoAprobacion>
-                          <Fecha>{{fecha}}</Fecha>
-                          <Pais>{{pais}}</Pais>
-                          <Localidad>{{localidad}}</Localidad>
-                          <Comentario>{{comentario}}</Comentario>
-                          <Estado>{{estado}}</Estado>
-                          <Gastos>
-                              <Gasto>
-                                  <Line>{{line}}</Line>
-                                  <TipoGasto>{{tipo_gasto}}</TipoGasto>
-                                  <Comentario>{{gasto_comentario}}</Comentario>
-                                  <Importe>{{importe}}</Importe>
-                                  <Divisa>{{divisa}}</Divisa>
-                                  <Cantidad>{{cantidad}}</Cantidad>
-                                  <Refacturar>{{refacturar}}</Refacturar>
-                                  <Albaran>{{albaran}}</Albaran>
-                              </Gasto>
-                          </Gastos>
-                      </Liquidacion>
+                          <Liquidacion>
+                              <Concepto>TEST</Concepto>
+                              <IdProyecto>94</IdProyecto>
+                              <NombreProyecto>P24 PEFORMACIÓN</NombreProyecto>
+                              <IdEmpleado>92</IdEmpleado>
+                              <NombreEmpleado>Euclydes Young da Silva Netto</NombreEmpleado>
+                              <IdEmpleadoAprobacion>0</IdEmpleadoAprobacion>
+                              <Fecha>2026-04-11T00:00:00</Fecha>
+                              <Pais>ES</Pais>
+                              <NombrePais>España</NombrePais>
+                              <Localidad>Madrid</Localidad>
+                              <Comentario>AWS Certified Cloud Practitioner (CLF-C01)</Comentario>
+                              <Estado>Rechazada</Estado>
+                              <MotivoRechazo>Rechazo liquidación porque el justificante no es correcto. Necesito el ticket original en el cuál se pueda comprobar el importe a pagar.</MotivoRechazo>
+                              <Gastos>
+                                  <Gasto>
+                                      <Line>1</Line>
+                                      <IdProyecto>94</IdProyecto>
+                                      <IdEmpleado>92</IdEmpleado>
+                                      <NombreEmpleado>Euclydes Young da Silva Netto</NombreEmpleado>
+                                      <Fecha>2026-02-11T00:00:00</Fecha>
+                                      <TipoGasto>NO_EXISTE</TipoGasto>
+                                      <NombreGasto>Otros</NombreGasto>
+                                      <Comentario>AWS Certified Cloud Practitioner (CLF-C01)</Comentario>
+                                      <Importe>666.9</Importe>
+                                      <Divisa>EUR</Divisa>
+                                      <Cantidad>1</Cantidad>
+                            
+                                      
+                                      <Refacturar>false</Refacturar>
+                                      <Albaran>1</Albaran>
+                                  </Gasto>
+                              </Gastos>
+                          </Liquidacion>
                   </request>
               </SetLiquidacionGastos>
           </env:Body>

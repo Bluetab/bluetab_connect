@@ -10,6 +10,12 @@
 
 ## Installation
 
+```sh
+mix igniter.install bluetab_connect@github:Bluetab/bluetab_connect
+```
+
+### Or:
+
 Add `bluetab_connect` to your list of dependencies in `mix.exs`:
 
 ```elixir
@@ -99,6 +105,12 @@ The PX client provides methods to retrieve organizational data:
 
 ```elixir
 {:ok, business_units} = BluetabConnect.Px.Rest.list_business_units()
+```
+
+#### List Spend Types
+
+```elixir
+{:ok, spend_types} = BluetabConnect.Px.Rest.list_spend_types()
 ```
 
 ### SAP OData Client

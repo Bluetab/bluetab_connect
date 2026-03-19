@@ -15,29 +15,29 @@ defmodule BluetabConnect.Px.Rest do
   end
 
   def list_employees(criteria \\ []) do
-      base_req = get_client()
+    base_req = get_client()
 
-      url =
-        case criteria do
-          [{:employee_number, number}] ->
-            "/api/employees?employee_number=#{URI.encode_www_form(to_string(number))}"
+    url =
+      case criteria do
+        [{:employee_number, number}] ->
+          "/api/employees?employee_number=#{URI.encode_www_form(to_string(number))}"
 
-          [{:email, email}] ->
-            "/api/employees?email=#{URI.encode_www_form(email)}"
+        [{:email, email}] ->
+          "/api/employees?email=#{URI.encode_www_form(email)}"
 
-          _ ->
-            "/api/employees"
-        end
-
-      case Req.get(base_req, url: url) do
-        {:ok, %{body: %{"employees" => employees}, status: 200}} ->
-          {:ok, employees}
-
-        err ->
-          Logger.error("Error listing employees: #{inspect(err)}")
-          {:error, :list_employees_error}
+        _ ->
+          "/api/employees"
       end
+
+    case Req.get(base_req, url: url) do
+      {:ok, %{body: %{"employees" => employees}, status: 200}} ->
+        {:ok, employees}
+
+      err ->
+        Logger.error("Error listing employees: #{inspect(err)}")
+        {:error, :list_employees_error}
     end
+  end
 
   def list_initiatives do
     base_req = get_client()
@@ -114,6 +114,19 @@ defmodule BluetabConnect.Px.Rest do
       err ->
         Logger.error("Error listing hour types: #{inspect(err)}")
         {:error, :list_hour_types_error}
+    end
+  end
+
+  def list_spend_types do
+    base_req = get_client()
+
+    case Req.get(base_req, url: "/api/spend-types") do
+      {:ok, %{body: %{"spend_types" => spend_types}, status: 200}} ->
+        {:ok, spend_types}
+
+      err ->
+        Logger.error("Error listing spend types: #{inspect(err)}")
+        {:error, :list_spend_types_error}
     end
   end
 

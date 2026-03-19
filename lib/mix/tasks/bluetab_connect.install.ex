@@ -306,9 +306,10 @@ if Code.ensure_loaded?(Igniter) do
         {_line, last_idx} = List.last(maybe_child_calls)
         existing_line = Enum.at(lines, last_idx)
         indent_str = String.replace(existing_line, ~r/\S.*$/, "")
+        existing_line = String.replace(existing_line, ~r/,\s*$/, "")
 
         lines
-        |> List.update_at(last_idx, &(&1 <> " ++"))
+        |> List.update_at(last_idx, fn _ -> existing_line <> " ++" end)
         |> List.insert_at(last_idx + 1, "#{indent_str}#{child_code}")
         |> Enum.join("\n")
       else
@@ -316,19 +317,16 @@ if Code.ensure_loaded?(Igniter) do
           Enum.find_index(lines, &String.contains?(&1, "children ="))
 
         if children_start_idx do
-          closing_idx =
-            lines
-            |> Enum.with_index()
-            |> Enum.drop(children_start_idx)
-            |> Enum.find(fn {line, _idx} ->
-              String.trim(line) == "]"
-            end)
+          closing_idx = find_children_closing_idx(lines, children_start_idx)
 
           case closing_idx do
-            {_line, idx} ->
+            idx when is_integer(idx) ->
+              closing_line = Enum.at(lines, idx)
+              indent_str = String.replace(closing_line, ~r/\S.*$/, "")
+
               lines
               |> List.update_at(idx, &(&1 <> " ++"))
-              |> List.insert_at(idx + 1, "        #{child_code}")
+              |> List.insert_at(idx + 1, "#{indent_str}#{child_code}")
               |> Enum.join("\n")
 
             nil ->
@@ -338,6 +336,73 @@ if Code.ensure_loaded?(Igniter) do
           content
         end
       end
+    end
+
+    defp find_children_closing_idx(lines, children_start_idx) do
+      joined = Enum.join(lines, "\n")
+
+      line_offsets =
+        lines
+        |> Enum.reduce({[], 0}, fn line, {acc, offset} ->
+          {[offset | acc], offset + String.length(line) + 1}
+        end)
+        |> elem(0)
+        |> Enum.reverse()
+
+      children_line_offset = Enum.at(line_offsets, children_start_idx)
+      children_line = Enum.at(lines, children_start_idx)
+
+      bracket_pos =
+        case :binary.match(children_line, "[") do
+          {pos, _len} -> pos
+          :nomatch -> nil
+        end
+
+      if is_nil(bracket_pos) do
+        nil
+      else
+        start_offset = children_line_offset + bracket_pos
+        scan_for_matching_bracket(joined, start_offset + 1, 1, line_offsets)
+      end
+    end
+
+    defp scan_for_matching_bracket(_content, offset, 0, line_offsets) do
+      offset_to_line_index(offset - 1, line_offsets)
+    end
+
+    defp scan_for_matching_bracket(content, offset, depth, line_offsets) do
+      if offset >= byte_size(content) do
+        nil
+      else
+        char = :binary.at(content, offset)
+
+        new_depth =
+          case char do
+            ?[ -> depth + 1
+            ?] -> depth - 1
+            _ -> depth
+          end
+
+        if new_depth == 0 do
+          offset_to_line_index(offset, line_offsets)
+        else
+          scan_for_matching_bracket(content, offset + 1, new_depth, line_offsets)
+        end
+      end
+    end
+
+    defp offset_to_line_index(offset, line_offsets) do
+      line_offsets
+      |> Enum.with_index()
+      |> Enum.reduce_while(nil, fn {line_offset, idx}, _acc ->
+        next_offset = Enum.at(line_offsets, idx + 1, :infinity)
+
+        if offset >= line_offset and offset < next_offset do
+          {:halt, idx}
+        else
+          {:cont, nil}
+        end
+      end)
     end
 
     # ──────────────────────────────────────────────

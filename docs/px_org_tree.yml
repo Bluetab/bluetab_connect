@@ -1,0 +1,308 @@
+openapi: 3.0.0
+info:
+  title: Organizational Structure & Initiatives API
+  version: 1.0.0
+  description: API for managing Business Units, Clusters, Client Groups, Clients, and Initiatives.
+
+paths:
+  /api/business-units:
+    get:
+      summary: Get all Business Units
+      responses:
+        '200':
+          description: A list of business units.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  business_units:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BusinessUnit'
+
+  /api/clusters:
+    get:
+      summary: Get all Clusters
+      responses:
+        '200':
+          description: A list of clusters.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  clusters:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Cluster'
+
+  /api/client-groups:
+    get:
+      summary: Get all Client Groups
+      responses:
+        '200':
+          description: A list of client groups.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  client_groups:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ClientGroup'
+
+  /api/clients:
+    get:
+      summary: Get all Clients
+      responses:
+        '200':
+          description: A list of clients.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  clients:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Client'
+
+  /api/initiatives:
+    get:
+      summary: Get all Initiatives
+      responses:
+        '200':
+          description: A list of initiatives.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  initiatives:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Initiative'
+
+  /api/spend-types:
+    get:
+      summary: Get all Spend Types
+      responses:
+        '200':
+          description: A list of spend types.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  spend_types:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SpendType'
+                  total:
+                    type: integer
+                    example: 1
+
+components:
+  schemas:
+    BusinessUnit:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 2
+        name:
+          type: string
+          example: CDIP
+        description:
+          type: string
+          example: ""
+        bu_leader_sap_id:
+          type: integer
+          example: 633
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-07-13T20:51:02.814439"
+
+    Cluster:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 7
+        name:
+          type: string
+          example: Insurance
+        description:
+          type: string
+          example: ""
+        business_unit_id:
+          type: integer
+          example: 1
+        cluster_leader_sap_id:
+          type: integer
+          example: 667
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-04-28T07:59:03.963563"
+
+    ClientGroup:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: ADECCO
+        description:
+          type: string
+          nullable: true
+          example: null
+        cluster_id:
+          type: integer
+          example: 1
+        sector_id:
+          type: integer
+          example: 1
+        account_manager_sap_id:
+          type: integer
+          nullable: true
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-04-28T07:59:03.832438"
+
+    Client:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 30
+        name:
+          type: string
+          example: "Evolutio Cloud Enabler, S.A."
+        description:
+          type: string
+          nullable: true
+          example: null
+        logo:
+          type: string
+          nullable: true
+          example: null
+        client_group_id:
+          type: integer
+          nullable: true
+          example: null
+        account_manager_sap_id:
+          type: integer
+          nullable: true
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-07-22T02:00:09.222454"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2025-07-22T02:00:09.222461"
+
+    Initiative:
+      type: object
+      properties:
+        initiative_key:
+          type: string
+          example: IT-1083
+        summary:
+          type: string
+          example: "Fast Capture 2.0."
+        description:
+          type: string
+          nullable: true
+          example: null
+        scope:
+          type: string
+          nullable: true
+          example: null
+        goals:
+          type: string
+          nullable: true
+          example: null
+        client_id:
+          type: integer
+          example: 141
+        needs_px:
+          type: boolean
+          example: false
+        delivery_manager:
+          type: string
+          format: email
+          example: "hector.macia@bluetab.net"
+        delivery_manager_sap_id:
+          type: integer
+          example: 113
+        sap_project_ids:
+          type: array
+          items:
+            type: integer
+          example: [1775]
+        startDate:
+          type: string
+          format: date-time
+          example: "2025-12-09T00:00:00"
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+
+    SpendType:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        sap_id:
+          type: string
+          example: GV00007
+        sap_name:
+          type: string
+          example: Dieta Día Completo
+        name:
+          type: string
+          example: Dieta día completo
+        custom_fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/SpendTypeCustomField'
+
+    SpendTypeCustomField:
+      type: object
+      properties:
+        code:
+          type: string
+          example: amount
+        name:
+          type: string
+          example: Amount
+        type:
+          type: string
+          example: currency
+          description: 'Field type (for example: text, number, currency, list).'
+        required:
+          type: boolean
+          example: true
+        description:
+          type: string
+          nullable: true
+          example: Amount in EUR
+        options:
+          type: array
+          nullable: true
+          items:
+            type: string
+          example: [Travel, Meals, Other]
