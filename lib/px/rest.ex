@@ -207,6 +207,54 @@ defmodule BluetabConnect.Px.Rest do
     end
   end
 
+  @doc """
+  Lists month end close records from the PX Month End Close API.
+
+  Requires a service account, admin, or business operations access.
+
+  ## Options
+
+    * `:year` - Filter by year
+    * `:month` - Filter by month (1-12)
+
+  ## Returns
+
+      {:ok, %{"month_end_close" => [...], "total" => count}}
+
+  ## Examples
+
+      BluetabConnect.Px.Rest.list_month_end_close()
+      BluetabConnect.Px.Rest.list_month_end_close(year: 2025, month: 3)
+  """
+  def list_month_end_close(opts \\ []) do
+    base_req = get_client()
+
+    query_params =
+      opts
+      |> Keyword.take([:year, :month])
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+      |> Enum.map(fn {k, v} -> {to_string(k), to_string(v)} end)
+
+    url =
+      case query_params do
+        [] -> "/api/month-end-close"
+        params -> "/api/month-end-close?" <> URI.encode_query(params)
+      end
+
+    case Req.get(base_req, url: url) do
+      {:ok, %{body: %{"month_end_close" => records, "total" => total}, status: 200}} ->
+        {:ok, %{"month_end_close" => records, "total" => total}}
+
+      {:ok, %{body: %{"error" => reason}, status: 401}} ->
+        Logger.error("Unauthorized listing month end close: #{reason}")
+        {:error, :unauthorized}
+
+      err ->
+        Logger.error("Error listing month end close: #{inspect(err)}")
+        {:error, :list_month_end_close_error}
+    end
+  end
+
   @impl true
   def init(config) do
     base_url = Keyword.fetch!(config, :base_url)

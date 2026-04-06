@@ -1,0 +1,25 @@
+info:
+  name: employees
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{sf_url}}/odata/v2/PerPerson"
+  params:
+    - name: $filter
+      value: employmentNav/jobInfoNav/company eq '{{sf_company}}'
+      type: query
+    - name: $expand
+      value: employmentNav,employmentNav/jobInfoNav,employmentNav/userNav,personalInfoNav,userAccountNav
+      type: query
+    - name: $select
+      value: personIdExternal,employmentNav/assignmentClass,employmentNav/endDate,employmentNav/jobInfoNav/company,employmentNav/jobInfoNav/customString6,employmentNav/jobInfoNav/customString7,employmentNav/originalStartDate,employmentNav/startDate,employmentNav/userNav/email,personalInfoNav/firstName,personalInfoNav/lastName,personalInfoNav/secondLastName,personalInfoNav/customString2,userAccountNav/email
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

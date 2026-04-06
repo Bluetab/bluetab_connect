@@ -1,0 +1,14 @@
+name: ssff
+variables:
+  - name: user_id
+    value: "92"
+  - name: sf_url
+    value: https://api55.sapsf.eu
+  - secret: true
+    name: sf_user
+  - secret: true
+    name: sf_password
+  - name: sf_company
+    value: ESP_0001
+  - name: sf_locale
+    value: es_ES

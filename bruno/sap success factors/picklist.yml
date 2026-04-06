@@ -1,0 +1,30 @@
+info:
+  name: picklist
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{sf_url}}/odata/v2/PicklistLabel"
+  params:
+    - name: $filter
+      value: picklistOption/picklist/picklistId eq '{{picklist_id}}' and locale eq '{{sf_locale}}'
+      type: query
+    - name: $expand
+      value: picklistOption/picklist
+      type: query
+    - name: $select
+      value: label,optionId
+      type: query
+  auth: inherit
+
+runtime:
+  variables:
+    - name: picklist_id
+      value: ESP_CATEGORIA
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

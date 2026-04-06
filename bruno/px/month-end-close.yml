@@ -1,0 +1,24 @@
+info:
+  name: month-end-close
+  type: http
+  seq: 10
+
+http:
+  method: GET
+  url: "{{px_url}}/api/month-end-close"
+  params:
+    - name: year
+      value: "2025"
+      type: query
+      disabled: true
+    - name: month
+      value: "3"
+      type: query
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

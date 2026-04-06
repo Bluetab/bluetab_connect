@@ -1,0 +1,10 @@
+info:
+  name: sap success factors
+  type: folder
+  seq: 3
+
+request:
+  auth:
+    type: basic
+    username: "{{sf_user}}"
+    password: "{{sf_password}}"
