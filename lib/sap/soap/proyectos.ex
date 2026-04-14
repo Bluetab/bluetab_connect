@@ -513,7 +513,7 @@ defmodule BluetabConnect.Sap.Soap.Proyectos do
   """
   def set_liquidacion_gastos(liquidacion) do
     params = %{
-      "Liquidacion" => liquidacion
+      "Liquidacion" => normalize_comment_line_breaks(liquidacion)
     }
 
     case Soap.call(@endpoint, "SetLiquidacionGastos", params) do
@@ -750,7 +750,7 @@ defmodule BluetabConnect.Sap.Soap.Proyectos do
     params = %{
       "Usuario" => usuario,
       "Password" => password,
-      "Liquidacion" => liquidacion
+      "Liquidacion" => normalize_comment_line_breaks(liquidacion)
     }
 
     case Soap.call(@endpoint, "CreateLiquidacionGastos", params) do
@@ -848,6 +848,33 @@ defmodule BluetabConnect.Sap.Soap.Proyectos do
 
   defp value(map, key) when is_map(map) and is_atom(key),
     do: Map.get(map, key) || Map.get(map, Atom.to_string(key))
+
+  # SAP stores multiline comments more reliably when sent as CRLF.
+  # We normalize both atom and string keys named "Comentario".
+  defp normalize_comment_line_breaks(value) when is_list(value),
+    do: Enum.map(value, &normalize_comment_line_breaks/1)
+
+  defp normalize_comment_line_breaks(%{} = value) do
+    Enum.reduce(value, %{}, fn {key, nested_value}, acc ->
+      normalized_value =
+        if comentario_key?(key) and is_binary(nested_value) do
+          nested_value
+          |> String.replace("\r\n", "\n")
+          |> String.replace("\r", "\n")
+          |> String.replace("\n", "\r\n")
+        else
+          normalize_comment_line_breaks(nested_value)
+        end
+
+      Map.put(acc, key, normalized_value)
+    end)
+  end
+
+  defp normalize_comment_line_breaks(value), do: value
+
+  defp comentario_key?(:Comentario), do: true
+  defp comentario_key?("Comentario"), do: true
+  defp comentario_key?(_), do: false
 
   defp parse_boolean(true), do: true
   defp parse_boolean(false), do: false
