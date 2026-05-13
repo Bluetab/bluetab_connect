@@ -1,0 +1,28 @@
+info:
+  name: list_employees
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{sap_odata_url}}/b1s/v2/EmployeesInfo"
+  params:
+    - name: $filter
+      value: (TerminationDate eq null or TerminationDate ge '{{employee_cutoff_date}}')
+      type: query
+    - name: $select
+      value: EmployeeID,eMail
+      type: query
+  headers:
+    - name: prefer
+      value: odata.maxpagesize={{odata_page_size}}
+    - name: B1S-CaseInsensitive
+      value: "true"
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

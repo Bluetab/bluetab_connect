@@ -1,0 +1,25 @@
+info:
+  name: list_assignments
+  type: http
+  seq: 3
+
+http:
+  method: GET
+  url: "{{sap_odata_url}}/b1s/v2/sml.svc/SCLPRJBIANLHORASQUERY?$filter=IsGeneral ne 'Y' and ImputacionDate ge '2026-04-01'&$select=DocNum,EmployeeNumber,ImputacionYear,ImputacionMonth,PlannedQuantity,PostedQuantity"
+  headers:
+    - name: prefer
+      value: odata.maxpagesize={{odata_page_size}}
+  params:
+    - name: $filter
+      value: IsGeneral ne 'Y' and ImputacionDate ge '2026-04-01'
+      type: query
+    - name: $select
+      value: DocNum,EmployeeNumber,ImputacionYear,ImputacionMonth,PlannedQuantity,PostedQuantity
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

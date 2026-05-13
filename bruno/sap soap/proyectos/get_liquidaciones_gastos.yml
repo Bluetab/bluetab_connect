@@ -31,8 +31,7 @@ http:
 runtime:
   variables:
     - name: user_id
-      value: ""
-      disabled: true
+      value: "122"
 
 settings:
   encodeUrl: true

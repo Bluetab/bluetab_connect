@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: "{{px_url}}/api/projects?doc_num=1775"
+  url: "{{px_url}}/api/projects?doc_num=97&fields=client_id,owner,is_time_off,cluster_id"
   params:
     - name: page
       value: "1"
@@ -24,7 +24,7 @@ http:
       type: query
       disabled: true
     - name: doc_num
-      value: "1775"
+      value: "97"
       type: query
     - name: start_date_from
       value: 2026-01-01
@@ -51,9 +51,8 @@ http:
       type: query
       disabled: true
     - name: fields
-      value: client_id,owner_name,financial_project
+      value: client_id,owner,is_time_off,cluster_id
       type: query
-      disabled: true
   auth: inherit
 
 settings:

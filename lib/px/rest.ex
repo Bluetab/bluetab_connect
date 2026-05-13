@@ -132,6 +132,7 @@ defmodule BluetabConnect.Px.Rest do
 
   @project_filter_keys ~w(status sap_id doc_num start_date_from start_date_to end_date_from end_date_to client_id owner)a
   @project_pagination_keys ~w(page per_page)a
+  @project_passthrough_option_key :query
 
   @doc """
   Lists projects from the PX Projects API.
@@ -149,7 +150,10 @@ defmodule BluetabConnect.Px.Rest do
     * `:end_date_to` - Filter projects with end date to (format: YYYY-MM-DD)
     * `:client_id` - Filter by client ID
     * `:owner` - Filter by owner employee number
-    * `:fields` - List of additional fields to include (e.g., `[:client_id, :owner_name]`)
+    * `:fields` - Additional fields to include as a list or comma-separated string
+      (e.g., `[:client_id, :owner_name, :financial_project, :reason]`)
+    * `:query` - Keyword list or map with extra API query params not explicitly listed
+      (useful to expose new server-side filters without changing this client)
 
   ## Examples
 
@@ -162,6 +166,13 @@ defmodule BluetabConnect.Px.Rest do
       # With field selection
       BluetabConnect.Px.Rest.list_projects(fields: [:client_id, :owner_name, :financial_project])
 
+      # Pass through additional query params supported by the API
+      BluetabConnect.Px.Rest.list_projects(
+        page: 1,
+        per_page: 50,
+        query: [some_new_filter: "value", include_flags: true]
+      )
+
   ## Returns
 
       {:ok, %{"projects" => [...], "pagination" => %{...}}}
@@ -169,23 +180,7 @@ defmodule BluetabConnect.Px.Rest do
   def list_projects(opts \\ []) do
     base_req = get_client()
 
-    query_params =
-      opts
-      |> Keyword.take(@project_pagination_keys ++ @project_filter_keys)
-      |> Enum.map(fn {k, v} -> {to_string(k), to_string(v)} end)
-
-    query_params =
-      case Keyword.get(opts, :fields) do
-        nil ->
-          query_params
-
-        fields when is_list(fields) ->
-          fields_str = fields |> Enum.map_join(",", &to_string/1)
-          [{"fields", fields_str} | query_params]
-
-        fields when is_binary(fields) ->
-          [{"fields", fields} | query_params]
-      end
+    query_params = build_project_query_params(opts)
 
     url =
       case query_params do
@@ -194,8 +189,8 @@ defmodule BluetabConnect.Px.Rest do
       end
 
     case Req.get(base_req, url: url) do
-      {:ok, %{body: %{"projects" => projects, "pagination" => pagination}, status: 200}} ->
-        {:ok, %{"projects" => projects, "pagination" => pagination}}
+      {:ok, %{body: %{"projects" => _projects} = body, status: 200}} ->
+        {:ok, body}
 
       {:ok, %{body: %{"error" => reason}, status: 401}} ->
         Logger.error("Unauthorized listing projects: #{reason}")
@@ -206,6 +201,73 @@ defmodule BluetabConnect.Px.Rest do
         {:error, :list_projects_error}
     end
   end
+
+  defp build_project_query_params(opts) do
+    opts = normalize_project_opts(opts)
+
+    base_params =
+      opts
+      |> Keyword.take(@project_pagination_keys ++ @project_filter_keys)
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+      |> Enum.map(fn {k, v} -> {to_string(k), to_string(v)} end)
+      |> Map.new()
+
+    passthrough_params =
+      opts
+      |> Keyword.get(@project_passthrough_option_key, [])
+      |> normalize_query_params()
+      |> Map.new()
+
+    params =
+      base_params
+      |> Map.merge(passthrough_params)
+      |> maybe_put_fields_param(Keyword.get(opts, :fields))
+
+    Map.to_list(params)
+  end
+
+  defp normalize_project_opts(opts) when is_list(opts), do: opts
+  defp normalize_project_opts(opts) when is_map(opts), do: Map.to_list(opts)
+  defp normalize_project_opts(_opts), do: []
+
+  defp normalize_query_params(params) when is_list(params) do
+    params
+    |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+    |> Enum.map(fn {k, v} -> {to_string(k), to_string(v)} end)
+  end
+
+  defp normalize_query_params(params) when is_map(params) do
+    params
+    |> Map.to_list()
+    |> normalize_query_params()
+  end
+
+  defp normalize_query_params(_params), do: []
+
+  defp maybe_put_fields_param(params, nil), do: params
+
+  defp maybe_put_fields_param(params, fields) when is_list(fields) do
+    fields_str =
+      fields
+      |> Enum.map(&to_string/1)
+      |> Enum.reject(&(&1 == ""))
+      |> Enum.join(",")
+
+    if fields_str == "" do
+      params
+    else
+      Map.put(params, "fields", fields_str)
+    end
+  end
+
+  defp maybe_put_fields_param(params, fields) when is_binary(fields) do
+    case String.trim(fields) do
+      "" -> params
+      trimmed -> Map.put(params, "fields", trimmed)
+    end
+  end
+
+  defp maybe_put_fields_param(params, _fields), do: params
 
   @doc """
   Lists month end close records from the PX Month End Close API.

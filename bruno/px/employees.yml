@@ -5,14 +5,13 @@ info:
 
 http:
   method: GET
-  url: "{{px_url}}/api/employees"
+  url: "{{px_url}}/api/employees?employee_number=1001"
   params:
     - name: employee_number
       value: "1001"
       type: query
-      disabled: true
     - name: email
-      value: employee@example.com
+      value: ""
       type: query
       disabled: true
   auth: inherit

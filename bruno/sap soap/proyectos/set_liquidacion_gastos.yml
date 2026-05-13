@@ -20,38 +20,41 @@ http:
           <env:Body>
               <SetLiquidacionGastos xmlns="http://SCL/SCL.Addins.Bluetab.Proyectos/WebServices">
                   <request>
-                      <AuthenticationToken>{{sap_soap_token}}</AuthenticationToken>
+                      <AuthenticationToken>{{sap_soap_token}}</AuthenticationToken>                   
                           <Liquidacion>
-                              <Concepto>TEST</Concepto>
-                              <IdProyecto>94</IdProyecto>
-                              <NombreProyecto>P24 PEFORMACIÓN</NombreProyecto>
-                              <IdEmpleado>92</IdEmpleado>
-                              <NombreEmpleado>Euclydes Young da Silva Netto</NombreEmpleado>
-                              <IdEmpleadoAprobacion>0</IdEmpleadoAprobacion>
-                              <Fecha>2026-04-11T00:00:00</Fecha>
+                              <Code>000006BS</Code>
+                              <Concepto>Comida OCS</Concepto>
+                              <IdProyecto>37435</IdProyecto>
+                              <NombreProyecto>P1440 Marketing MasOrange</NombreProyecto>
+                              <IdEmpleado>122</IdEmpleado>
+                              <NombreEmpleado>IGNACIO BELTRAN HEREDIA</NombreEmpleado>
+                              <IdEmpleadoAprobacion>633</IdEmpleadoAprobacion>
+                              <Fecha>2026-04-09T00:00:00</Fecha>
                               <Pais>ES</Pais>
                               <NombrePais>España</NombrePais>
                               <Localidad>Madrid</Localidad>
-                              <Comentario>AWS Certified Cloud Practitioner (CLF-C01)</Comentario>
-                              <Estado>Rechazada</Estado>
-                              <MotivoRechazo>Rechazo liquidación porque el justificante no es correcto. Necesito el ticket original en el cuál se pueda comprobar el importe a pagar.</MotivoRechazo>
+                              <Comentario/>
+                              <Estado>PendienteFinanzas</Estado>
+                              <MotivoRechazo/>
                               <Gastos>
                                   <Gasto>
+                                      <Code>000006BS</Code>
                                       <Line>1</Line>
-                                      <IdProyecto>94</IdProyecto>
-                                      <IdEmpleado>92</IdEmpleado>
-                                      <NombreEmpleado>Euclydes Young da Silva Netto</NombreEmpleado>
-                                      <Fecha>2026-02-11T00:00:00</Fecha>
-                                      <TipoGasto>NO_EXISTE</TipoGasto>
-                                      <NombreGasto>Otros</NombreGasto>
-                                      <Comentario>AWS Certified Cloud Practitioner (CLF-C01)</Comentario>
-                                      <Importe>666.9</Importe>
+                                      <IdProyecto>37435</IdProyecto>
+                                      <IdEmpleado>122</IdEmpleado>
+                                      <NombreEmpleado/>
+                                      <Fecha>2026-02-26T00:00:00</Fecha>
+                                      <TipoGasto>GV00015</TipoGasto>
+                                      <NombreGasto/>
+                                      <Comentario>{"concepto":"CALLAO24","custom_fields":{"es_goe":false,"nombre_cliente":"OCS","personas_bluetab":2,"personas_cliente":1}}</Comentario>
+                                      <Importe>89</Importe>
                                       <Divisa>EUR</Divisa>
                                       <Cantidad>1</Cantidad>
-                            
-                                      
+                                      <NombreJustificante>image.jpg</NombreJustificante>
+                                      <Justificante/>
+                                      <CodeJustificante>00000ARE</CodeJustificante>
                                       <Refacturar>false</Refacturar>
-                                      <Albaran>1</Albaran>
+                                      <Albaran>-1</Albaran>
                                   </Gasto>
                               </Gastos>
                           </Liquidacion>
