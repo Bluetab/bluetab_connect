@@ -1,0 +1,110 @@
+info:
+  name: set_imputaciones_horas
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{sap_soap_url}}/{{endpoint}}"
+  headers:
+    - name: SOAPAction
+      value: http://SCL/SCL.Addins.Bluetab.Proyectos/WebServices/SetImputacionesHoras
+    - name: Content-Type
+      value: text/xml;charset=utf-8
+  body:
+    type: xml
+    data: |-
+      <?xml version="1.0" encoding="UTF-8"?>
+      <env:Envelope xmlns:env="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <env:Header/>
+          <env:Body>
+              <SetImputacionesHoras xmlns="http://SCL/SCL.Addins.Bluetab.Proyectos/WebServices">
+                  <request>
+                      <AuthenticationToken>{{sap_soap_token}}</AuthenticationToken>
+                      <IdEmpleado>155</IdEmpleado>
+                      <Imputaciones>
+                         <ImputacionHoras>
+                            <Code>0000PLFA</Code>
+                            <IdProyecto>255</IdProyecto>
+                            <NombreProyecto>PE - Festivo_BankHoliday</NombreProyecto>
+                            <IdEmpleado>155</IdEmpleado>
+                            <NombreEmpleado>JORGE SOBRINO DEL RIEGO</NombreEmpleado>
+                            <Dia>2026-05-15T00:00:00</Dia>
+                            <Horas>8</Horas>
+                            <IdTipoHora>NORMAL</IdTipoHora>
+                            <Comentario>Imputación automática a festivo</Comentario>
+                            <Estado>Aprobado</Estado>
+                            <MotivoRechazo/>
+                            <Albaran>56982</Albaran>
+                            <IdEmpleadoImp>0</IdEmpleadoImp>
+                            <Precontrato/>
+                        </ImputacionHoras>
+                        <ImputacionHoras>
+                            <Code>0000PYI0</Code>
+                            <IdProyecto>40247</IdProyecto>
+                            <NombreProyecto>P1769 UFIP JP Gestion de Proyecto Y26</NombreProyecto>
+                            <IdEmpleado>155</IdEmpleado>
+                            <NombreEmpleado>JORGE SOBRINO DEL RIEGO</NombreEmpleado>
+                            <Dia>2026-05-15T00:00:00</Dia>
+                            <Horas>8</Horas>
+                            <IdTipoHora>NORMAL</IdTipoHora>
+                            <Comentario>httpsjirabluetabnetbrowseHOR2479</Comentario>
+                            <Estado>Imputado</Estado>
+                            <MotivoRechazo/>
+                            <Albaran>-1</Albaran>
+                            <IdEmpleadoImp>231</IdEmpleadoImp>
+                            <Precontrato/>
+                        </ImputacionHoras>
+                        <ImputacionHoras>
+                            <Code>0000PYI1</Code>
+                            <IdProyecto>255</IdProyecto>
+                            <NombreProyecto>PE - Festivo_BankHoliday</NombreProyecto>
+                            <IdEmpleado>155</IdEmpleado>
+                            <NombreEmpleado>JORGE SOBRINO DEL RIEGO</NombreEmpleado>
+                            <Dia>2026-05-15T00:00:00</Dia>
+                            <Horas>-8</Horas>
+                            <IdTipoHora>REGULARIZACION</IdTipoHora>
+                            <Comentario>httpsjirabluetabnetbrowseHOR2479</Comentario>
+                            <Estado>Imputado</Estado>
+                            <MotivoRechazo/>
+                            <Albaran>-1</Albaran>
+                            <IdEmpleadoImp>231</IdEmpleadoImp>
+                            <Precontrato/>
+                        </ImputacionHoras>
+                      </Imputaciones>
+                  </request>
+              </SetImputacionesHoras>
+          </env:Body>
+      </env:Envelope>
+  auth: inherit
+
+runtime:
+  variables:
+    - name: id_empleado
+      value: ""
+    - name: code
+      value: ""
+    - name: id_proyecto
+      value: ""
+    - name: imputacion_id_empleado
+      value: ""
+    - name: dia
+      value: ""
+    - name: horas
+      value: ""
+    - name: id_tipo_hora
+      value: ""
+    - name: comentario
+      value: ""
+    - name: estado
+      value: Imputado
+    - name: albaran
+      value: ""
+    - name: id_empleado_imp
+      value: ""
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

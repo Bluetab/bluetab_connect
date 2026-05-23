@@ -32,9 +32,9 @@ http:
 runtime:
   variables:
     - name: user_id
-      value: ""
+      value: "1766"
     - name: date
-      value: ""
+      value: 2026-05-01
 
 settings:
   encodeUrl: true

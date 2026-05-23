@@ -5,11 +5,12 @@ info:
 
 http:
   method: GET
-  url: "{{sf_url}}/odata/v2/PerPerson"
+  url: "{{sf_url}}/odata/v2/PerPerson?$expand=employmentNav,employmentNav/jobInfoNav,employmentNav/userNav,personalInfoNav,userAccountNav&$select=personIdExternal,employmentNav/assignmentClass,employmentNav/endDate,employmentNav/jobInfoNav/company,employmentNav/jobInfoNav/customString6,employmentNav/jobInfoNav/customString7,employmentNav/originalStartDate,employmentNav/startDate,employmentNav/userNav/email,personalInfoNav/firstName,personalInfoNav/lastName,personalInfoNav/secondLastName,personalInfoNav/customString2,userAccountNav/email"
   params:
     - name: $filter
-      value: employmentNav/jobInfoNav/company eq '{{sf_company}}'
+      value: userAccountNav/email eq 'euclydes.young@bluetab.net'
       type: query
+      disabled: true
     - name: $expand
       value: employmentNav,employmentNav/jobInfoNav,employmentNav/userNav,personalInfoNav,userAccountNav
       type: query

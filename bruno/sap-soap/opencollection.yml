@@ -1,7 +1,7 @@
 opencollection: 1.0.0
 
 info:
-  name: bluetab_connect
+  name: sap soap
 config:
   proxy:
     inherit: true
@@ -19,3 +19,5 @@ extensions:
     ignore:
       - node_modules
       - .git
+request:
+  auth: inherit

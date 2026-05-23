@@ -1,0 +1,26 @@
+opencollection: 1.0.0
+
+info:
+  name: sap odata
+config:
+  proxy:
+    inherit: true
+    config:
+      protocol: http
+      hostname: ""
+      port: ""
+      auth:
+        username: ""
+        password: ""
+      bypassProxy: ""
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git
+request:
+  auth:
+    type: basic
+    username: '{"CompanyDB":"{{sap_odata_companydb}}","UserName":"{{sap_odata_user}}"}'
+    password: "{{sap_odata_password}}"

@@ -1,0 +1,15 @@
+info:
+  name: EmpEmployment/personNav
+  type: http
+  seq: 6
+
+http:
+  method: GET
+  url: https://api55.sapsf.eu/odata/v2/EmpEmployment(personIdExternal='40080',userId='40080')/personNav
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
