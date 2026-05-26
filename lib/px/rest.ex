@@ -14,30 +14,66 @@ defmodule BluetabConnect.Px.Rest do
     GenServer.call(__MODULE__, :get_client)
   end
 
-  def list_employees(criteria \\ []) do
+  @employee_filter_keys ~w(employee_number email)a
+
+  @doc """
+  Lists employees from the PX Employees API.
+
+  Organizational hierarchy is available via the Positions API, not on employee
+  records. Requires a service account, admin, or business operations access.
+
+  ## Options
+
+    * `:employee_number` - Filter by employee number (SAP employee number)
+    * `:email` - Filter by email address
+
+  If no options are provided, returns all employees.
+
+  ## Returns
+
+      {:ok, %{"employees" => [...], "total" => count}}
+
+  Each employee map includes: `sap_employee_number`, `email`, `full_name`,
+  `first_name`, `last_name`, `ssff_id`, `category`, `category_name`,
+  `weekly_hours`, `hub`, `is_active`, `start_date`, `termination_date`.
+
+  ## Examples
+
+      BluetabConnect.Px.Rest.list_employees()
+      BluetabConnect.Px.Rest.list_employees(employee_number: 10001)
+      BluetabConnect.Px.Rest.list_employees(email: "john@example.com")
+  """
+  def list_employees(opts \\ []) do
     base_req = get_client()
 
+    query_params =
+      opts
+      |> Keyword.take(@employee_filter_keys)
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+      |> Enum.map(fn {k, v} -> {to_string(k), format_employee_query_value(v)} end)
+
     url =
-      case criteria do
-        [{:employee_number, number}] ->
-          "/api/employees?employee_number=#{URI.encode_www_form(to_string(number))}"
-
-        [{:email, email}] ->
-          "/api/employees?email=#{URI.encode_www_form(email)}"
-
-        _ ->
-          "/api/employees"
+      case query_params do
+        [] -> "/api/employees"
+        params -> "/api/employees?" <> URI.encode_query(params)
       end
 
     case Req.get(base_req, url: url) do
-      {:ok, %{body: %{"employees" => employees}, status: 200}} ->
-        {:ok, employees}
+      {:ok, %{body: %{"employees" => employees, "total" => total}, status: 200}} ->
+        {:ok, %{"employees" => employees, "total" => total}}
+
+      {:ok, %{body: %{"error" => reason}, status: 401}} ->
+        Logger.error("Unauthorized listing employees: #{reason}")
+        {:error, :unauthorized}
 
       err ->
         Logger.error("Error listing employees: #{inspect(err)}")
         {:error, :list_employees_error}
     end
   end
+
+  defp format_employee_query_value(value) when is_integer(value), do: to_string(value)
+  defp format_employee_query_value(value), do: to_string(value)
 
   def list_initiatives do
     base_req = get_client()
@@ -129,6 +165,97 @@ defmodule BluetabConnect.Px.Rest do
         {:error, :list_spend_types_error}
     end
   end
+
+  @position_filter_keys ~w(position_id employee_number is_active is_default)a
+
+  @doc """
+  Lists positions from the PX Positions API.
+
+  Returns organizational positions, current reporting relationships, and assigned
+  employees. Requires a service account.
+
+  ## Options
+
+    * `:position_id` - Filter by position ID
+    * `:employee_number` - Positions assigned to or default for this employee
+    * `:is_active` - Filter by active status
+    * `:is_default` - Filter default vs non-default positions
+
+  ## Returns
+
+      {:ok, %{
+        "positions" => [...],
+        "relationships" => [...],
+        "total_positions" => count,
+        "total_relationships" => count
+      }}
+
+  ## Examples
+
+      BluetabConnect.Px.Rest.list_positions()
+      BluetabConnect.Px.Rest.list_positions(employee_number: 10001, is_active: true)
+  """
+  def list_positions(opts \\ []) do
+    base_req = get_client()
+
+    query_params =
+      opts
+      |> Keyword.take(@position_filter_keys)
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+      |> Enum.map(fn {k, v} -> {to_string(k), format_position_query_value(v)} end)
+
+    url =
+      case query_params do
+        [] -> "/api/positions"
+        params -> "/api/positions?" <> URI.encode_query(params)
+      end
+
+    case Req.get(base_req, url: url) do
+      {:ok, %{body: %{"positions" => _} = body, status: 200}} ->
+        {:ok, body}
+
+      {:ok, %{body: %{"error" => reason}, status: 401}} ->
+        Logger.error("Unauthorized listing positions: #{reason}")
+        {:error, :unauthorized}
+
+      err ->
+        Logger.error("Error listing positions: #{inspect(err)}")
+        {:error, :list_positions_error}
+    end
+  end
+
+  @doc """
+  Gets a position by ID from the PX Positions API.
+
+  Requires a service account.
+
+  ## Examples
+
+      BluetabConnect.Px.Rest.get_position(10)
+  """
+  def get_position(id) do
+    base_req = get_client()
+    id_str = to_string(id)
+
+    case Req.get(base_req, url: "/api/positions/#{id_str}") do
+      {:ok, %{body: body, status: 200}} ->
+        {:ok, body}
+
+      {:ok, %{body: %{"error" => reason}, status: 401}} ->
+        Logger.error("Unauthorized getting position: #{reason}")
+        {:error, :unauthorized}
+
+      {:ok, %{status: 404}} ->
+        {:error, :not_found}
+
+      err ->
+        Logger.error("Error getting position #{id_str}: #{inspect(err)}")
+        {:error, :get_position_error}
+    end
+  end
+
+  defp format_position_query_value(value) when is_boolean(value), do: to_string(value)
+  defp format_position_query_value(value), do: to_string(value)
 
   @project_filter_keys ~w(status sap_id doc_num start_date_from start_date_to end_date_from end_date_to client_id owner)a
   @project_pagination_keys ~w(page per_page)a

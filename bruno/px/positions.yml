@@ -1,0 +1,32 @@
+info:
+  name: positions
+  type: http
+  seq: 11
+
+http:
+  method: GET
+  url: "{{px_url}}/api/positions"
+  params:
+    - name: position_id
+      value: "10"
+      type: query
+      disabled: true
+    - name: employee_number
+      value: "10001"
+      type: query
+      disabled: true
+    - name: is_active
+      value: "true"
+      type: query
+      disabled: true
+    - name: is_default
+      value: "true"
+      type: query
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

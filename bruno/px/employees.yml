@@ -5,10 +5,10 @@ info:
 
 http:
   method: GET
-  url: "{{px_url}}/api/employees?employee_number=1001"
+  url: "{{px_url}}/api/employees?employee_number=10001"
   params:
     - name: employee_number
-      value: "1001"
+      value: "10001"
       type: query
     - name: email
       value: ""
