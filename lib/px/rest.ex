@@ -60,7 +60,8 @@ defmodule BluetabConnect.Px.Rest do
 
     case Req.get(base_req, url: url) do
       {:ok, %{body: %{"employees" => employees, "total" => total}, status: 200}} ->
-        {:ok, %{"employees" => employees, "total" => total}}
+        normalized_employees = Enum.map(employees, &normalize_employee_dates/1)
+        {:ok, %{"employees" => normalized_employees, "total" => total}}
 
       {:ok, %{body: %{"error" => reason}, status: 401}} ->
         Logger.error("Unauthorized listing employees: #{reason}")
@@ -74,6 +75,46 @@ defmodule BluetabConnect.Px.Rest do
 
   defp format_employee_query_value(value) when is_integer(value), do: to_string(value)
   defp format_employee_query_value(value), do: to_string(value)
+
+  defp normalize_employee_dates(employee) when is_map(employee) do
+    employee
+    |> Map.update("start_date", nil, &normalize_iso8601_date_value/1)
+    |> Map.update("termination_date", nil, &normalize_iso8601_date_value/1)
+  end
+
+  defp normalize_employee_dates(employee), do: employee
+
+  defp normalize_iso8601_date_value(nil), do: nil
+
+  defp normalize_iso8601_date_value(value) when is_binary(value) do
+    trimmed = String.trim(value)
+
+    if trimmed == "" do
+      nil
+    else
+      case Date.from_iso8601(trimmed) do
+        {:ok, date} ->
+          Date.to_iso8601(date)
+
+        {:error, _} ->
+          case DateTime.from_iso8601(trimmed) do
+            {:ok, datetime, _offset} ->
+              datetime |> DateTime.to_date() |> Date.to_iso8601()
+
+            {:error, _} ->
+              case NaiveDateTime.from_iso8601(trimmed) do
+                {:ok, naive_datetime} ->
+                  naive_datetime |> NaiveDateTime.to_date() |> Date.to_iso8601()
+
+                {:error, _} ->
+                  nil
+              end
+          end
+      end
+    end
+  end
+
+  defp normalize_iso8601_date_value(_), do: nil
 
   def list_initiatives do
     base_req = get_client()
