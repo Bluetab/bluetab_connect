@@ -1,14 +1,14 @@
 info:
-  name: get_proyectos
+  name: get_available_connections
   type: http
-  seq: 7
+  seq: 2
 
 http:
   method: POST
   url: "{{sap_soap_url}}/{{endpoint}}"
   headers:
     - name: SOAPAction
-      value: http://SCL/SCL.Addins.Bluetab.Proyectos/WebServices/GetProyectos
+      value: http://SCL/WSS/TokenDispenser/WebServices/GetAvailableConnections
     - name: Content-Type
       value: text/xml;charset=utf-8
   body:
@@ -18,11 +18,10 @@ http:
       <env:Envelope xmlns:env="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
           <env:Header/>
           <env:Body>
-              <GetProyectos xmlns="http://SCL/SCL.Addins.Bluetab.Proyectos/WebServices">
-                  <request>
-                      <AuthenticationToken>{{soap_token}}</AuthenticationToken>
-                  </request>
-              </GetProyectos>
+              <GetAvailableConnections xmlns="http://SCL/WSS/TokenDispenser/WebServices">
+                  <UserName>{{soap_username}}</UserName>
+                  <Password>{{soap_password}}</Password>
+              </GetAvailableConnections>
           </env:Body>
       </env:Envelope>
   auth: inherit

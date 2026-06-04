@@ -1,6 +1,6 @@
 if Code.ensure_loaded?(Igniter) do
   defmodule Mix.Tasks.BluetabConnect.Install do
-    @shortdoc "Installs BluetabConnect connectors (px_rest, sap_soap, sap_odata)"
+    @shortdoc "Installs BluetabConnect connectors (px_rest, sap_soap, sap_odata, sap_ssff)"
 
     @moduledoc """
     Installs one or more BluetabConnect connectors into a Phoenix application.
@@ -13,10 +13,11 @@ if Code.ensure_loaded?(Igniter) do
     - `px_rest` - PX REST API client (`BluetabConnect.Px.Rest`)
     - `sap_soap` - SAP SOAP client (`BluetabConnect.Sap.Soap`)
     - `sap_odata` - SAP OData client (`BluetabConnect.Sap.Odata`)
+    - `sap_ssff` - SAP SuccessFactors OData client (`BluetabConnect.Sap.SuccessFactors`)
 
     ## Usage
 
-        mix bluetab_connect.install px_rest sap_soap sap_odata
+        mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff
 
     ## What this installer does
 
@@ -35,11 +36,12 @@ if Code.ensure_loaded?(Igniter) do
 
     ### sap_soap
 
-    - `SOAP_CONNECTION_ID` - SAP SOAP connection ID
-    - `SOAP_USERNAME` - SAP SOAP username
-    - `SOAP_PASSWORD` - SAP SOAP password
+    - `SOAP_TOKEN` - Pre-issued authentication token (skips TokenDispenser when set)
     - `SOAP_URL` - SAP SOAP base URL
     - `SOAP_VERIFY_SSL` - Enable SSL verification (default: "true")
+    - `SOAP_CONNECTION_ID` - SAP SOAP connection ID (only when `SOAP_TOKEN` is not set)
+    - `SOAP_USERNAME` - SAP SOAP username (only when `SOAP_TOKEN` is not set)
+    - `SOAP_PASSWORD` - SAP SOAP password (only when `SOAP_TOKEN` is not set)
 
     ### sap_odata
 
@@ -47,17 +49,23 @@ if Code.ensure_loaded?(Igniter) do
     - `ODATA_DATABASE` - SAP CompanyDB name
     - `ODATA_USERNAME` - SAP OData username
     - `ODATA_PASSWORD` - SAP OData password
+
+    ### sap_ssff
+
+    - `SF_API_URL` - SuccessFactors OData base URL (e.g. `https://api55.sapsf.eu`)
+    - `SF_USER` - SuccessFactors API username
+    - `SF_PASSWORD` - SuccessFactors API password
     """
 
     use Igniter.Mix.Task
 
-    @valid_connectors ~w(px_rest sap_soap sap_odata)
+    @valid_connectors ~w(px_rest sap_soap sap_odata sap_ssff)
 
     @impl Igniter.Mix.Task
     def info(_argv, _composing_task) do
       %Igniter.Mix.Task.Info{
         group: :bluetab_connect,
-        example: "mix bluetab_connect.install px_rest sap_soap sap_odata"
+        example: "mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff"
       }
     end
 
@@ -155,6 +163,7 @@ if Code.ensure_loaded?(Igniter) do
     defp config_key("px_rest"), do: "px"
     defp config_key("sap_soap"), do: "soap"
     defp config_key("sap_odata"), do: "odata"
+    defp config_key("sap_ssff"), do: "ssff"
 
     defp runtime_config_block("px_rest", app_name) do
       String.trim_trailing("""
@@ -167,6 +176,7 @@ if Code.ensure_loaded?(Igniter) do
     defp runtime_config_block("sap_soap", app_name) do
       String.trim_trailing("""
         config :#{app_name}, :soap,
+          token: System.get_env("SOAP_TOKEN"),
           connection_id: System.get_env("SOAP_CONNECTION_ID"),
           timeout: 120_000,
           username: System.get_env("SOAP_USERNAME"),
@@ -183,6 +193,15 @@ if Code.ensure_loaded?(Igniter) do
           database: System.fetch_env!("ODATA_DATABASE"),
           username: System.fetch_env!("ODATA_USERNAME"),
           password: System.fetch_env!("ODATA_PASSWORD")
+      """)
+    end
+
+    defp runtime_config_block("sap_ssff", app_name) do
+      String.trim_trailing("""
+        config :#{app_name}, :ssff,
+          base_url: System.fetch_env!("SF_API_URL"),
+          username: System.fetch_env!("SF_USER"),
+          password: System.fetch_env!("SF_PASSWORD")
       """)
     end
 
@@ -258,6 +277,9 @@ if Code.ensure_loaded?(Igniter) do
     defp child_exists?(content, "sap_odata"),
       do: String.contains?(content, "BluetabConnect.Sap.Odata")
 
+    defp child_exists?(content, "sap_ssff"),
+      do: String.contains?(content, "BluetabConnect.Sap.SuccessFactors")
+
     defp child_line("px_rest", app_name),
       do: "maybe_child(BluetabConnect.Px.Rest, Application.get_env(:#{app_name}, :px))"
 
@@ -266,6 +288,10 @@ if Code.ensure_loaded?(Igniter) do
 
     defp child_line("sap_odata", app_name),
       do: "maybe_child(BluetabConnect.Sap.Odata, Application.get_env(:#{app_name}, :odata))"
+
+    defp child_line("sap_ssff", app_name),
+      do:
+        "maybe_child(BluetabConnect.Sap.SuccessFactors, Application.get_env(:#{app_name}, :ssff))"
 
     defp ensure_maybe_child(content) do
       if String.contains?(content, "defp maybe_child") do
@@ -435,11 +461,13 @@ if Code.ensure_loaded?(Igniter) do
     defp env_vars_for("sap_soap") do
       String.trim_trailing("""
           # Sap.Soap
-          SOAP_CONNECTION_ID=your-connection-id
-          SOAP_USERNAME=your-username
-          SOAP_PASSWORD=your-password
+          SOAP_TOKEN=your-pre-issued-token
           SOAP_URL=https://your-soap-url
           SOAP_VERIFY_SSL=true
+          # Only required when SOAP_TOKEN is not set:
+          # SOAP_CONNECTION_ID=your-connection-id
+          # SOAP_USERNAME=your-username
+          # SOAP_PASSWORD=your-password
       """)
     end
 
@@ -450,6 +478,15 @@ if Code.ensure_loaded?(Igniter) do
           ODATA_DATABASE=your-database
           ODATA_USERNAME=your-username
           ODATA_PASSWORD=your-password
+      """)
+    end
+
+    defp env_vars_for("sap_ssff") do
+      String.trim_trailing("""
+          # Sap.SuccessFactors
+          SF_API_URL=https://api55.sapsf.eu
+          SF_USER=your-username
+          SF_PASSWORD=your-password
       """)
     end
   end

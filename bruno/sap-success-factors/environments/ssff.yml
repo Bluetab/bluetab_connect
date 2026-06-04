@@ -12,3 +12,7 @@ variables:
     value: ESP_0001
   - name: sf_locale
     value: es_ES
+  - name: sf_holiday_calendar
+    value: BARCELONA
+  - name: sf_holiday_date
+    value: "2024-12-25"

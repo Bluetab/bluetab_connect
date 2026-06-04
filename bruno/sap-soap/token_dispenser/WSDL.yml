@@ -1,11 +1,15 @@
 info:
-  name: holiday-calendars
+  name: WSDL
   type: http
-  seq: 8
+  seq: 1
 
 http:
   method: GET
-  url: "{{sf_url}}/odata/v2/HolidayCalendar"
+  url: "{{sap_soap_url}}/{{endpoint}}?WSDL"
+  params:
+    - name: WSDL
+      value: ""
+      type: query
   auth: inherit
 
 settings:

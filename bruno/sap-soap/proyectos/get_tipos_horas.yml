@@ -20,7 +20,7 @@ http:
           <env:Body>
               <GetTiposHoras xmlns="http://SCL/SCL.Addins.Bluetab.Proyectos/WebServices">
                   <request>
-                      <AuthenticationToken>{{sap_soap_token}}</AuthenticationToken>
+                      <AuthenticationToken>{{soap_token}}</AuthenticationToken>
                   </request>
               </GetTiposHoras>
           </env:Body>

@@ -20,7 +20,7 @@ http:
           <env:Body>
               <GetUsuariosParaRRHH xmlns="http://SCL/SCL.Addins.Bluetab.Proyectos/WebServices">
                   <request>
-                      <AuthenticationToken>{{sap_soap_token}}</AuthenticationToken>
+                      <AuthenticationToken>{{soap_token}}</AuthenticationToken>
                       <UserId>{{user_id}}</UserId>
                   </request>
               </GetUsuariosParaRRHH>

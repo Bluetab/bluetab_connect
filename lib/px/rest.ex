@@ -58,7 +58,9 @@ defmodule BluetabConnect.Px.Rest do
         params -> "/api/employees?" <> URI.encode_query(params)
       end
 
-    case Req.get(base_req, url: url) do
+    dbg({base_req, url})
+
+    case Req.get(base_req, url: url) |> dbg() do
       {:ok, %{body: %{"employees" => employees, "total" => total}, status: 200}} ->
         normalized_employees = Enum.map(employees, &normalize_employee_dates/1)
         {:ok, %{"employees" => normalized_employees, "total" => total}}

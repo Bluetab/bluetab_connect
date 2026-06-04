@@ -1,8 +1,8 @@
 name: sap_soap_test
 variables:
   - name: sap_soap_url
-    value: http://192.168.20.5:4199/SCLWebServiceServer/
-  - secret: true
-    name: sap_soap_token
+    value: http://sapsoap.bluetab.net:4199/SCLWebServiceServer/
+  - name: soap_token
+    value: BTDEV
   - name: user_id
     value: "92"

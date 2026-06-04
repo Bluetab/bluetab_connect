@@ -58,9 +58,16 @@ config = [
 
 ### SAP SOAP Client
 
-The SAP SOAP client requires SOAP URL, connection ID, username, and password:
+The SAP SOAP client requires a SOAP URL and either a pre-issued token or TokenDispenser credentials:
 
 ```elixir
+# Preferred: use a pre-issued authentication token
+config = [
+  soap_url: "https://your-sap-server.com/soap",
+  token: "your_pre_issued_token"
+]
+
+# Alternative: fetch a token via TokenDispenser
 config = [
   soap_url: "https://your-sap-server.com/soap",
   connection_id: "your_connection_id",

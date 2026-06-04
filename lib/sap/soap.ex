@@ -72,16 +72,29 @@ defmodule BluetabConnect.Sap.Soap do
   end
 
   defp get_token(%{config: config, token: nil} = state) do
-    with {:ok, token} <- TokenDispenser.get_token(config) do
-      {:ok, token, Map.put(state, :token, token)}
-    else
-      error ->
-        Logger.error("SAP initialization failed: #{inspect(error)}")
-        {:error, state}
+    case fetch_config_token(config) do
+      {:ok, token} ->
+        {:ok, token, Map.put(state, :token, token)}
+
+      :missing ->
+        with {:ok, token} <- TokenDispenser.get_token(config) do
+          {:ok, token, Map.put(state, :token, token)}
+        else
+          error ->
+            Logger.error("SAP initialization failed: #{inspect(error)}")
+            {:error, state}
+        end
     end
   end
 
   defp get_token(%{token: token} = state), do: {:ok, token, state}
+
+  defp fetch_config_token(config) do
+    case Keyword.get(config, :token) do
+      token when is_binary(token) and token != "" -> {:ok, token}
+      _ -> :missing
+    end
+  end
 
   defp init_wsdl(config, endpoint) do
     soap_url = Keyword.fetch!(config, :soap_url)

@@ -8,6 +8,7 @@ defmodule BluetabConnect.Sap.SuccessFactors do
   @timeout 30_000
   @expand "employmentNav,employmentNav/jobInfoNav,employmentNav/userNav,personalInfoNav,userAccountNav"
   @select "personIdExternal,employmentNav/assignmentClass,employmentNav/endDate,employmentNav/jobInfoNav/company,employmentNav/jobInfoNav/customString6,employmentNav/jobInfoNav/customString7,employmentNav/originalStartDate,employmentNav/startDate,employmentNav/userNav/email,personalInfoNav/firstName,personalInfoNav/lastName,personalInfoNav/secondLastName,personalInfoNav/customString2,userAccountNav/email"
+  @holiday_expand "holidayAssignments,holidayAssignments/holidayNav"
 
   def start_link(config) do
     GenServer.start_link(__MODULE__, config, name: __MODULE__)
@@ -27,6 +28,10 @@ defmodule BluetabConnect.Sap.SuccessFactors do
 
   def careers do
     list_picklist(id: "ESP_CARRERA")
+  end
+
+  def list_holiday_calendars(params \\ %{}) do
+    GenServer.call(__MODULE__, {:holiday_calendars, params}, @timeout)
   end
 
   @impl true
@@ -77,6 +82,18 @@ defmodule BluetabConnect.Sap.SuccessFactors do
     e -> {:reply, error(e), state}
   end
 
+  def handle_call({:holiday_calendars, params}, _from, %{client: client} = state) do
+    reply =
+      case odata(client, "/odata/v2/HolidayCalendar", holiday_calendar_opts(params)) do
+        {:ok, results} -> {:ok, parse_holiday_calendars(results)}
+        error -> error
+      end
+
+    {:reply, reply, state}
+  rescue
+    e -> {:reply, error(e), state}
+  end
+
   defp employee_filter(params) do
     params
     |> Map.new()
@@ -99,6 +116,67 @@ defmodule BluetabConnect.Sap.SuccessFactors do
     end)
     |> Enum.join(" and ")
   end
+
+  defp holiday_calendar_opts(params) do
+    params = Map.new(params)
+
+    [
+      expand: @holiday_expand,
+      top: Map.get(params, :top),
+      skip: Map.get(params, :skip)
+    ]
+    |> Enum.reject(fn {_k, v} -> v in [nil, ""] end)
+  end
+
+  defp parse_holiday_calendars(calendars) when is_list(calendars) do
+    Enum.map(calendars, &parse_holiday_calendar/1)
+  end
+
+  defp parse_holiday_calendar(calendar) do
+    %{
+      code: calendar["externalCode"],
+      class: calendar["holidayClass"],
+      holidays: parse_holiday_assignments(calendar["holidayAssignments"])
+    }
+  end
+
+  defp parse_holiday_assignments(%{"results" => assignments}) when is_list(assignments) do
+    Enum.map(assignments, &parse_holiday_assignment/1)
+  end
+
+  defp parse_holiday_assignments(_), do: []
+
+  defp parse_holiday_assignment(assignment) do
+    %{
+      date: parse_odata_date(assignment["date"]),
+      holiday_code: assignment["holiday"],
+      name: get_in(assignment, ["holidayNav", "name_defaultValue"])
+    }
+  end
+
+  defp parse_odata_date("/Date(" <> rest) do
+    ms =
+      rest
+      |> String.split([")", "+"], parts: 2)
+      |> hd()
+      |> String.to_integer()
+
+    ms
+    |> div(1000)
+    |> DateTime.from_unix!()
+    |> DateTime.to_date()
+  end
+
+  defp parse_odata_date(value) when is_binary(value) do
+    case Date.from_iso8601(String.slice(value, 0, 10)) do
+      {:ok, date} -> date
+      _ -> value
+    end
+  end
+
+  defp parse_odata_date(%Date{} = date), do: date
+  defp parse_odata_date(nil), do: nil
+  defp parse_odata_date(value), do: value
 
   defp error(%CaseClauseError{term: {:error, e}}) do
     message = if is_exception(e), do: Exception.message(e), else: e
@@ -146,6 +224,7 @@ defmodule BluetabConnect.Sap.SuccessFactors do
       {:inlinecount, inlinecount}, acc -> Map.put(acc, "$inlinecount", inlinecount)
       _, acc -> acc
     end)
+    |> Enum.reject(fn {_k, v} -> v in [nil, ""] end)
     |> URI.encode_query()
     |> String.replace("+", "%20")
   end

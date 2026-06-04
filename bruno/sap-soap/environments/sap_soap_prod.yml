@@ -3,6 +3,6 @@ variables:
   - name: sap_soap_url
     value: http://sapsoap.bluetab.net:4101/SCLWebServiceServer/
   - secret: true
-    name: sap_soap_token
+    name: soap_token
   - name: user_id
     value: "92"

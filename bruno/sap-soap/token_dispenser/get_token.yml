@@ -1,0 +1,44 @@
+info:
+  name: get_token
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{sap_soap_url}}/{{endpoint}}"
+  headers:
+    - name: SOAPAction
+      value: http://SCL/WSS/TokenDispenser/WebServices/GetToken
+    - name: Content-Type
+      value: text/xml;charset=utf-8
+  body:
+    type: xml
+    data: |-
+      <?xml version="1.0" encoding="UTF-8"?>
+      <env:Envelope xmlns:env="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <env:Header/>
+          <env:Body>
+              <GetToken xmlns="http://SCL/WSS/TokenDispenser/WebServices">
+                  <UserName>{{soap_username}}</UserName>
+                  <Password>{{soap_password}}</Password>
+                  <ConnectionID>{{soap_connection_id}}</ConnectionID>
+              </GetToken>
+          </env:Body>
+      </env:Envelope>
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        const body = res.getBody();
+        const match = String(body).match(/<TokenString>([^<]*)<\/TokenString>/);
+        if (match && match[1]) {
+          bru.setEnvVar("soap_token", match[1], { persist: true });
+        }

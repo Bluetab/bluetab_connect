@@ -20,7 +20,7 @@ http:
           <env:Body>
               <SetLiberacionesLiquidaciones xmlns="http://SCL/SCL.Addins.Bluetab.Proyectos/WebServices">
                   <request>
-                      <AuthenticationToken>{{sap_soap_token}}</AuthenticationToken>
+                      <AuthenticationToken>{{soap_token}}</AuthenticationToken>
                       <Liberaciones>
                           <string>{{code}}</string>
                       </Liberaciones>
