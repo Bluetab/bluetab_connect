@@ -22,7 +22,7 @@ defmodule BluetabConnect.MixProject do
   defp deps do
     [
       {:soap, github: "nettinho/soap"},
-      {:req, "~> 0.5.15"},
+      {:req, "~> 0.6"},
       {:igniter, "~> 0.7", optional: true}
     ]
   end
