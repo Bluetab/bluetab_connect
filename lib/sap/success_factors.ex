@@ -34,6 +34,40 @@ defmodule BluetabConnect.Sap.SuccessFactors do
     GenServer.call(__MODULE__, {:holiday_calendars, params}, @timeout)
   end
 
+  @doc false
+  def decode_odata_response(%{status: status, body: body}) when status in 200..299 do
+    case body do
+      %{"d" => %{"__next" => next_url, "results" => results}} when is_list(results) ->
+        {:ok, {:page, results, next_url}}
+
+      %{"d" => %{"results" => results}} when is_list(results) ->
+        {:ok, results}
+
+      %{"d" => data} ->
+        {:error, {:unexpected_odata_payload, summarize_payload(data)}}
+
+      _ ->
+        {:error, {:unexpected_odata_payload, summarize_payload(body)}}
+    end
+  end
+
+  def decode_odata_response(%{status: status, body: body}) do
+    {:error, {:http_error, status, summarize_payload(body)}}
+  end
+
+  def decode_odata_response(other) do
+    {:error, {:unexpected_odata_payload, summarize_payload(other)}}
+  end
+
+  @doc false
+  def parse_holiday_calendars(calendars) when is_list(calendars) do
+    {:ok, Enum.map(calendars, &parse_holiday_calendar/1)}
+  end
+
+  def parse_holiday_calendars(other) do
+    {:error, {:invalid_holiday_calendars_payload, summarize_payload(other)}}
+  end
+
   @impl true
   def init(config) do
     base_url = Keyword.fetch!(config, :base_url)
@@ -85,7 +119,7 @@ defmodule BluetabConnect.Sap.SuccessFactors do
   def handle_call({:holiday_calendars, params}, _from, %{client: client} = state) do
     reply =
       case odata(client, "/odata/v2/HolidayCalendar", holiday_calendar_opts(params)) do
-        {:ok, results} -> {:ok, parse_holiday_calendars(results)}
+        {:ok, results} -> parse_holiday_calendars(results)
         error -> error
       end
 
@@ -126,10 +160,6 @@ defmodule BluetabConnect.Sap.SuccessFactors do
       skip: Map.get(params, :skip)
     ]
     |> Enum.reject(fn {_k, v} -> v in [nil, ""] end)
-  end
-
-  defp parse_holiday_calendars(calendars) when is_list(calendars) do
-    Enum.map(calendars, &parse_holiday_calendar/1)
   end
 
   defp parse_holiday_calendar(calendar) do
@@ -194,19 +224,35 @@ defmodule BluetabConnect.Sap.SuccessFactors do
   end
 
   defp odata_pages(client, url, headers) do
-    with {:ok, %{body: %{"d" => data}}} <- Req.get(client, url: url, headers: headers) do
-      case data do
-        %{"__next" => next_url, "results" => results} ->
-          {:ok, next_results} = odata_pages(client, next_url, headers)
-          {:ok, results ++ next_results}
+    case Req.get(client, url: url, headers: headers) do
+      {:ok, response} ->
+        case decode_odata_response(response) do
+          {:ok, {:page, results, next_url}} ->
+            case odata_pages(client, next_url, headers) do
+              {:ok, next_results} -> {:ok, results ++ next_results}
+              error -> error
+            end
 
-        %{"results" => results} ->
-          {:ok, results}
+          {:ok, results} ->
+            {:ok, results}
 
-        res ->
-          {:ok, res}
-      end
+          error ->
+            error
+        end
+
+      {:error, reason} ->
+        {:error, reason}
     end
+  end
+
+  defp summarize_payload(value) when is_binary(value) do
+    String.slice(value, 0, 200)
+  end
+
+  defp summarize_payload(value) do
+    value
+    |> inspect(limit: 20)
+    |> String.slice(0, 200)
   end
 
   defp query(opts) do
