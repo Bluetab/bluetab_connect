@@ -141,15 +141,45 @@ defmodule BluetabConnect.Sap.Odata do
   end
 
   defp odata_pages(base_req, url, headers) do
-    with {:ok, %{body: body}} <- Req.get(base_req, url: url, headers: headers) do
-      case body do
-        %{"@odata.nextLink" => next_url, "value" => value} ->
-          {:ok, next_value} = odata_pages(base_req, next_url, headers)
-          {:ok, value ++ next_value}
+    with {:ok, %{status: status, body: body}} <- Req.get(base_req, url: url, headers: headers) do
+      cond do
+        status >= 400 ->
+          {:error, {:http_error, status, body}}
 
-        %{"value" => value} ->
-          {:ok, value}
+        is_map(body) and Map.has_key?(body, "error") ->
+          {:error, {:odata_error, body["error"]}}
+
+        match?(%{"@odata.nextLink" => _, "value" => _}, body) ->
+          next_url = normalize_odata_next_link(body["@odata.nextLink"])
+
+          with {:ok, next_value} <- odata_pages(base_req, next_url, headers) do
+            {:ok, body["value"] ++ next_value}
+          end
+
+        match?(%{"value" => _}, body) ->
+          {:ok, body["value"]}
+
+        true ->
+          {:error, {:unexpected_odata_body, body}}
       end
+    end
+  end
+
+  # SAP Service Layer returns relative nextLinks without the /b1s/v2/sml.svc/ prefix
+  # (e.g. "SCLPRJBIANLHORASQUERY?$skip=10000"), which HTTP clients resolve against the host root.
+  defp normalize_odata_next_link(url) when is_binary(url) do
+    url =
+      if String.starts_with?(url, "http://") or String.starts_with?(url, "https://") do
+        %URI{path: path, query: query} = URI.parse(url)
+        if query, do: path <> "?" <> query, else: path || "/"
+      else
+        url
+      end
+
+    cond do
+      String.starts_with?(url, "/b1s/v2/") -> url
+      String.starts_with?(url, "/") -> "/b1s/v2/sml.svc" <> url
+      true -> "/b1s/v2/sml.svc/" <> url
     end
   end
 
@@ -188,22 +218,49 @@ defmodule BluetabConnect.Sap.Odata do
 
     username = Jason.encode!(%{"CompanyDB" => database, "UserName" => username})
 
-    transport_opts = [
-      ciphers: :ssl.cipher_suites(:all, :tlsv1),
-      verify: :verify_peer,
-      versions: [:tlsv1]
-    ]
-
     cred = "#{username}:#{password}"
 
     client =
       Req.new(
         base_url: base_url,
         auth: {:basic, cred},
-        connect_options: [transport_opts: transport_opts]
+        connect_options: [transport_opts: transport_opts(config)]
       )
 
     {:ok, %{client: client}}
+  end
+
+  # SAP B1 often only speaks TLS 1.2+; the old hardcoded `:tlsv1` causes
+  # `SERVER ALERT: Fatal - Protocol Version`. Optional config keys:
+  #   ssl_verify: true | false  (default true → :verify_peer)
+  #   ssl_fallback: true | false (default false; when true, also offer :tlsv1)
+  defp transport_opts(config) do
+    verify =
+      if Keyword.get(config, :ssl_verify, true) == false do
+        :verify_none
+      else
+        :verify_peer
+      end
+
+    versions =
+      if Keyword.get(config, :ssl_fallback, false) do
+        [:"tlsv1.3", :"tlsv1.2", :tlsv1]
+      else
+        [:"tlsv1.3", :"tlsv1.2"]
+      end
+
+    opts = [verify: verify, versions: versions]
+
+    if verify == :verify_peer do
+      Keyword.merge(opts,
+        cacerts: :public_key.cacerts_get(),
+        customize_hostname_check: [
+          match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
+        ]
+      )
+    else
+      opts
+    end
   end
 
   @impl true

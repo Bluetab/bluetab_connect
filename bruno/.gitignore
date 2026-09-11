@@ -1,6 +1,9 @@
 # Secrets
 .env*
 
+# Local Bruno environments (credentials, base URLs)
+environments/
+
 # Dependencies
 node_modules
 
