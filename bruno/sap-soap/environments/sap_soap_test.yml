@@ -2,7 +2,7 @@ name: sap_soap_test
 variables:
   - name: sap_soap_url
     value: http://sapsoap.bluetab.net:4199/SCLWebServiceServer/
-  - name: soap_token
-    value: BTDEV
+  - secret: true
+    name: soap_token
   - name: user_id
     value: "92"

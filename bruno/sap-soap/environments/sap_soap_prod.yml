@@ -4,5 +4,9 @@ variables:
     value: http://sapsoap.bluetab.net:4101/SCLWebServiceServer/
   - secret: true
     name: soap_token
-  - name: user_id
-    value: "92"
+  - name: soap_username
+    value: WEBREPORTING
+  - secret: true
+    name: soap_password
+  - name: soap_connection_id
+    value: "1"

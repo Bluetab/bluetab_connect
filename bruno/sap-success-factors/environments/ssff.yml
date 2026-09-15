@@ -15,4 +15,4 @@ variables:
   - name: sf_holiday_calendar
     value: BARCELONA
   - name: sf_holiday_date
-    value: "2024-12-25"
+    value: 2024-12-25
