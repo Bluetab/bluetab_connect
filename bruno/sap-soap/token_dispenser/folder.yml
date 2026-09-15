@@ -1,16 +1,10 @@
 info:
   name: token_dispenser
   type: folder
-  seq: 0
+  seq: 1
 
 request:
   auth: inherit
   variables:
     - name: endpoint
       value: TokenDispenser.asmx
-    - name: soap_username
-      value: your-username
-    - secret: true
-      name: soap_password
-    - name: soap_connection_id
-      value: "1"

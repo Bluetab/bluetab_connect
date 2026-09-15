@@ -116,6 +116,104 @@ defmodule BluetabConnect.Px.Rest do
 
   defp normalize_iso8601_date_value(_), do: nil
 
+  @absence_filter_keys ~w(employee_number from_date to_date)a
+
+  @doc """
+  Lists approved employee absences from the PX Employee Absences API.
+
+  Absences are synchronized from SAP SuccessFactors. Requires a service
+  account, admin, or business operations access.
+
+  Date filters use overlap semantics: an absence is included when it intersects
+  the `[from_date, to_date]` range (`absence.start_date <= to_date` and
+  `absence.end_date >= from_date`).
+
+  ## Options
+
+    * `:employee_number` - Filter by SAP employee number
+    * `:from_date` - Start of the search range (`YYYY-MM-DD` or `Date`)
+    * `:to_date` - End of the search range (`YYYY-MM-DD` or `Date`)
+
+  If no options are provided, returns all absences.
+
+  Invalid date formats or a `from_date` after `to_date` return `{:error, :bad_request}`.
+
+  ## Returns
+
+      {:ok, %{"absences" => [...], "total" => count}}
+
+  Each absence map includes: `external_code`, `employee_number`, `ssff_user_id`,
+  `time_type_code`, `time_type_name_en`, `time_type_name_es`, `start_date`,
+  `end_date`, `quantity_in_days`, `quantity_in_hours`, `approval_status`.
+
+  Results are ordered by `start_date` descending, then `employee_number`
+  ascending.
+
+  ## Examples
+
+      BluetabConnect.Px.Rest.list_employee_absences()
+      BluetabConnect.Px.Rest.list_employee_absences(employee_number: 10001)
+      BluetabConnect.Px.Rest.list_employee_absences(
+        employee_number: 10001,
+        from_date: ~D[2026-01-01],
+        to_date: ~D[2026-12-31]
+      )
+  """
+  def list_employee_absences(opts \\ []) do
+    base_req = get_client()
+
+    query_params =
+      opts
+      |> Keyword.take(@absence_filter_keys)
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+      |> Enum.map(fn {k, v} -> {to_string(k), format_absence_query_value(v)} end)
+
+    url =
+      case query_params do
+        [] -> "/api/employee-absences"
+        params -> "/api/employee-absences?" <> URI.encode_query(params)
+      end
+
+    case Req.get(base_req, url: url) do
+      {:ok, %{body: %{"absences" => absences, "total" => total}, status: 200}} ->
+        normalized_absences = Enum.map(absences, &normalize_absence_dates/1)
+        {:ok, %{"absences" => normalized_absences, "total" => total}}
+
+      {:ok, %{body: %{"error" => reason}, status: 401}} ->
+        Logger.error("Unauthorized listing employee absences: #{reason}")
+        {:error, :unauthorized}
+
+      {:ok, %{body: %{"error" => reason}, status: 400}} ->
+        Logger.error("Bad request listing employee absences: #{reason}")
+        {:error, :bad_request}
+
+      err ->
+        Logger.error("Error listing employee absences: #{inspect(err)}")
+        {:error, :list_employee_absences_error}
+    end
+  end
+
+  defp format_absence_query_value(%Date{} = date), do: Date.to_iso8601(date)
+
+  defp format_absence_query_value(%DateTime{} = datetime) do
+    datetime |> DateTime.to_date() |> Date.to_iso8601()
+  end
+
+  defp format_absence_query_value(%NaiveDateTime{} = naive) do
+    naive |> NaiveDateTime.to_date() |> Date.to_iso8601()
+  end
+
+  defp format_absence_query_value(value) when is_integer(value), do: to_string(value)
+  defp format_absence_query_value(value), do: to_string(value)
+
+  defp normalize_absence_dates(absence) when is_map(absence) do
+    absence
+    |> Map.update("start_date", nil, &normalize_iso8601_date_value/1)
+    |> Map.update("end_date", nil, &normalize_iso8601_date_value/1)
+  end
+
+  defp normalize_absence_dates(absence), do: absence
+
   def list_initiatives do
     base_req = get_client()
 
