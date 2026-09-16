@@ -1,0 +1,34 @@
+info:
+  name: employee-per-diems
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{spend_url}}/api/v1/employee-per-diems"
+  params:
+    - name: from
+      value: "{{from}}"
+      type: query
+      disabled: true
+    - name: to
+      value: "{{to}}"
+      type: query
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  Lists Dieta (GV00008) gastos as employee-per-diems.
+
+  Optional query params:
+  - from — ISO date (YYYY-MM-DD); include items with start_date >= from
+  - to — ISO date (YYYY-MM-DD); include items with start_date <= to
+
+  Enable the params below and set environment vars `from` / `to` to filter.
+  Each item: email, start_date, duration_days.

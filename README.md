@@ -1,12 +1,14 @@
 # BluetabConnect
 
-**BluetabConnect** is an Elixir library that provides client wrappers for connecting to external enterprise systems. It offers a unified interface for interacting with PX (Project Management platform) and SAP Business One through both REST/OData and SOAP protocols.
+**BluetabConnect** is an Elixir library that provides client wrappers for connecting to external enterprise systems. It offers a unified interface for interacting with PX (Project Management platform), Spend (expenses), and SAP Business One through both REST/OData and SOAP protocols.
 
 ## Features
 
 - **PX REST Client** - Connect to PX platform to manage organizational data
+- **Spend REST Client** - Connect to Spend app for employee per-diems
 - **SAP OData Client** - Query SAP Business One data using OData protocol
 - **SAP SOAP Client** - Comprehensive time entry management and approval workflows for SAP Business One
+- **SAP SuccessFactors Client** - Query SAP SuccessFactors OData APIs
 
 ## Installation
 
@@ -39,6 +41,19 @@ config = [
 ]
 
 {:ok, _pid} = BluetabConnect.Px.Rest.start_link(config)
+```
+
+### Spend REST Client
+
+The Spend client requires a base URL and API key for authentication:
+
+```elixir
+config = [
+  base_url: "https://spend.app.bluetab.net",
+  api_key: "spend_your_api_key_here"
+]
+
+{:ok, _pid} = BluetabConnect.Spend.Rest.start_link(config)
 ```
 
 ### SAP OData Client
@@ -118,6 +133,26 @@ The PX client provides methods to retrieve organizational data:
 
 ```elixir
 {:ok, spend_types} = BluetabConnect.Px.Rest.list_spend_types()
+```
+
+### Spend REST Client
+
+The Spend client provides methods to retrieve expense-related data:
+
+#### List Employee Per-Diems
+
+```elixir
+# List all employee per-diems
+{:ok, items} = BluetabConnect.Spend.Rest.list_employee_per_diems()
+
+# Filter by date range (start_date)
+{:ok, items} =
+  BluetabConnect.Spend.Rest.list_employee_per_diems(
+    from: ~D[2026-09-01],
+    to: ~D[2026-09-30]
+  )
+
+# Each item: %{"email" => ..., "start_date" => "YYYY-MM-DD", "duration_days" => n}
 ```
 
 ### SAP OData Client
@@ -378,6 +413,7 @@ rechazos = [
 All clients are implemented as GenServers that maintain persistent connections and authentication state:
 
 - **PX REST Client**: Maintains HTTP client with bearer token authentication
+- **Spend REST Client**: Maintains HTTP client with API key (Bearer) authentication
 - **SAP OData Client**: Maintains HTTP client with basic authentication and custom SSL configuration
 - **SAP SOAP Client**: Manages WSDL cache and authentication tokens
 

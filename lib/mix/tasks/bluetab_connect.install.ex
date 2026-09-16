@@ -1,6 +1,6 @@
 if Code.ensure_loaded?(Igniter) do
   defmodule Mix.Tasks.BluetabConnect.Install do
-    @shortdoc "Installs BluetabConnect connectors (px_rest, sap_soap, sap_odata, sap_ssff)"
+    @shortdoc "Installs BluetabConnect connectors (px_rest, sap_soap, sap_odata, sap_ssff, spend_rest)"
 
     @moduledoc """
     Installs one or more BluetabConnect connectors into a Phoenix application.
@@ -14,10 +14,11 @@ if Code.ensure_loaded?(Igniter) do
     - `sap_soap` - SAP SOAP client (`BluetabConnect.Sap.Soap`)
     - `sap_odata` - SAP OData client (`BluetabConnect.Sap.Odata`)
     - `sap_ssff` - SAP SuccessFactors OData client (`BluetabConnect.Sap.SuccessFactors`)
+    - `spend_rest` - Spend REST API client (`BluetabConnect.Spend.Rest`)
 
     ## Usage
 
-        mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff
+        mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff spend_rest
 
     ## What this installer does
 
@@ -55,17 +56,22 @@ if Code.ensure_loaded?(Igniter) do
     - `SF_API_URL` - SuccessFactors OData base URL (e.g. `https://api55.sapsf.eu`)
     - `SF_USER` - SuccessFactors API username
     - `SF_PASSWORD` - SuccessFactors API password
+
+    ### spend_rest
+
+    - `SPEND_API_URL` - Spend API base URL (e.g. `https://spend.app.bluetab.net`)
+    - `SPEND_API_KEY` - Spend API key (Bearer token, e.g. `spend_…`)
     """
 
     use Igniter.Mix.Task
 
-    @valid_connectors ~w(px_rest sap_soap sap_odata sap_ssff)
+    @valid_connectors ~w(px_rest sap_soap sap_odata sap_ssff spend_rest)
 
     @impl Igniter.Mix.Task
     def info(_argv, _composing_task) do
       %Igniter.Mix.Task.Info{
         group: :bluetab_connect,
-        example: "mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff"
+        example: "mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff spend_rest"
       }
     end
 
@@ -164,6 +170,7 @@ if Code.ensure_loaded?(Igniter) do
     defp config_key("sap_soap"), do: "soap"
     defp config_key("sap_odata"), do: "odata"
     defp config_key("sap_ssff"), do: "ssff"
+    defp config_key("spend_rest"), do: "spend"
 
     defp runtime_config_block("px_rest", app_name) do
       String.trim_trailing("""
@@ -202,6 +209,14 @@ if Code.ensure_loaded?(Igniter) do
           base_url: System.fetch_env!("SF_API_URL"),
           username: System.fetch_env!("SF_USER"),
           password: System.fetch_env!("SF_PASSWORD")
+      """)
+    end
+
+    defp runtime_config_block("spend_rest", app_name) do
+      String.trim_trailing("""
+        config :#{app_name}, :spend,
+          base_url: System.fetch_env!("SPEND_API_URL"),
+          api_key: System.fetch_env!("SPEND_API_KEY")
       """)
     end
 
@@ -280,6 +295,9 @@ if Code.ensure_loaded?(Igniter) do
     defp child_exists?(content, "sap_ssff"),
       do: String.contains?(content, "BluetabConnect.Sap.SuccessFactors")
 
+    defp child_exists?(content, "spend_rest"),
+      do: String.contains?(content, "BluetabConnect.Spend.Rest")
+
     defp child_line("px_rest", app_name),
       do: "maybe_child(BluetabConnect.Px.Rest, Application.get_env(:#{app_name}, :px))"
 
@@ -292,6 +310,9 @@ if Code.ensure_loaded?(Igniter) do
     defp child_line("sap_ssff", app_name),
       do:
         "maybe_child(BluetabConnect.Sap.SuccessFactors, Application.get_env(:#{app_name}, :ssff))"
+
+    defp child_line("spend_rest", app_name),
+      do: "maybe_child(BluetabConnect.Spend.Rest, Application.get_env(:#{app_name}, :spend))"
 
     defp ensure_maybe_child(content) do
       if String.contains?(content, "defp maybe_child") do
@@ -487,6 +508,14 @@ if Code.ensure_loaded?(Igniter) do
           SF_API_URL=https://api55.sapsf.eu
           SF_USER=your-username
           SF_PASSWORD=your-password
+      """)
+    end
+
+    defp env_vars_for("spend_rest") do
+      String.trim_trailing("""
+          # Spend.Rest
+          SPEND_API_URL=https://spend.app.bluetab.net
+          SPEND_API_KEY=your-spend-api-key
       """)
     end
   end
