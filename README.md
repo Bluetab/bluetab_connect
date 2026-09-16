@@ -152,7 +152,8 @@ The Spend client provides methods to retrieve expense-related data:
     to: ~D[2026-09-30]
   )
 
-# Each item: %{"email" => ..., "start_date" => "YYYY-MM-DD", "duration_days" => n}
+# Each item:
+# %{"email" => ..., "start_date" => "YYYY-MM-DD", "duration_days" => n, "status" => "Imputada"}
 ```
 
 ### SAP OData Client

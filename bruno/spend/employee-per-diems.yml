@@ -31,4 +31,4 @@ docs: |-
   - to — ISO date (YYYY-MM-DD); include items with start_date <= to
 
   Enable the params below and set environment vars `from` / `to` to filter.
-  Each item: email, start_date, duration_days.
+  Each item: email, start_date, duration_days, status (liquidación SAP estado).

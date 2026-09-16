@@ -30,9 +30,10 @@ defmodule BluetabConnect.Spend.Rest do
 
   ## Returns
 
-      {:ok, [%{"email" => ..., "start_date" => ..., "duration_days" => ...}, ...]}
+      {:ok, [%{"email" => ..., "start_date" => ..., "duration_days" => ..., "status" => ...}, ...]}
 
-  Each item includes: `email`, `start_date`, `duration_days`.
+  Each item includes: `email`, `start_date`, `duration_days`, and `status`
+  (parent liquidación SAP estado, e.g. `"Imputada"`, `"Pagada"`).
 
   ## Examples
 
