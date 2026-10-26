@@ -1,0 +1,25 @@
+info:
+  name: holidays-by-calendar
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{tempo_url}}/api/v1/holidays?calendar_code={{calendar_code}}"
+  params:
+    - name: calendar_code
+      value: "{{calendar_code}}"
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  Holidays of one calendar. calendar_code is the SuccessFactors calendar and matches the employee hub:
+  MADRID, BARCELONA, BILBAO, ALICANTE, MALAGA, COLOMBIA, MEXICO, PERU, COL_ARG, PER, Per_Arg.
+
+  Change the calendar_code variable in the environment. An unknown calendar returns an empty list, not an error.

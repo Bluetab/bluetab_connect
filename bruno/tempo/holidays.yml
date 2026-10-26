@@ -1,0 +1,25 @@
+info:
+  name: holidays
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{tempo_url}}/api/v1/holidays"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  Every active holiday of every calendar (several hundred rows). Start here to check that the key works.
+
+  Needs a Tempo API key with the Holidays scope (Tempo: Admin -> API Keys), set as tempo_api_key.
+  - 401: key unknown or expired
+  - 403: key valid but without the Holidays scope
+
+  Response: { "items": [...], "total": n }. Each item: calendar_code, date, holiday_code, name.
+  Ordered by calendar_code, date, holiday_code. Holidays hidden by Tempo's nightly sync are not listed.

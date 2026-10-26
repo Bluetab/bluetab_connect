@@ -1,0 +1,29 @@
+info:
+  name: holidays-by-date-range
+  type: http
+  seq: 3
+
+http:
+  method: GET
+  url: "{{tempo_url}}/api/v1/holidays?calendar_code={{calendar_code}}&date_from={{date_from}}&date_to={{date_to}}"
+  params:
+    - name: calendar_code
+      value: "{{calendar_code}}"
+      type: query
+    - name: date_from
+      value: "{{date_from}}"
+      type: query
+    - name: date_to
+      value: "{{date_to}}"
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  Holidays of one calendar within a date range. Both ends are inclusive and either can be left out.
+  Dates are YYYY-MM-DD; an invalid date (for example 2026-02-30) returns 400 naming the parameter.

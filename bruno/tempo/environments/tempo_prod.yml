@@ -1,0 +1,12 @@
+name: tempo_prod
+variables:
+  - name: tempo_url
+    value: https://tempo.app.bluetab.net
+  - secret: true
+    name: tempo_api_key
+  - name: calendar_code
+    value: MADRID
+  - name: date_from
+    value: 2026-01-01
+  - name: date_to
+    value: 2026-12-31

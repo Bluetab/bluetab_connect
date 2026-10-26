@@ -23,7 +23,9 @@ defmodule BluetabConnect.MixProject do
     [
       {:soap, github: "nettinho/soap"},
       {:req, "~> 0.6"},
-      {:igniter, "~> 0.7", optional: true}
+      {:igniter, "~> 0.7", optional: true},
+      # Req.Test stubs the HTTP layer in the client tests; not needed by consumers
+      {:plug, "~> 1.16", only: :test}
     ]
   end
 end

@@ -1,11 +1,12 @@
 # BluetabConnect
 
-**BluetabConnect** is an Elixir library that provides client wrappers for connecting to external enterprise systems. It offers a unified interface for interacting with PX (Project Management platform), Spend (expenses), and SAP Business One through both REST/OData and SOAP protocols.
+**BluetabConnect** is an Elixir library that provides client wrappers for connecting to external enterprise systems. It offers a unified interface for interacting with PX (Project Management platform), Spend (expenses), Tempo (holiday calendars), and SAP Business One through both REST/OData and SOAP protocols.
 
 ## Features
 
 - **PX REST Client** - Connect to PX platform to manage organizational data
 - **Spend REST Client** - Connect to Spend app for employee per-diems
+- **Tempo REST Client** - Connect to Tempo app for holiday calendars (no SAP SuccessFactors credentials needed)
 - **SAP OData Client** - Query SAP Business One data using OData protocol
 - **SAP SOAP Client** - Comprehensive time entry management and approval workflows for SAP Business One
 - **SAP SuccessFactors Client** - Query SAP SuccessFactors OData APIs
@@ -54,6 +55,21 @@ config = [
 ]
 
 {:ok, _pid} = BluetabConnect.Spend.Rest.start_link(config)
+```
+
+### Tempo REST Client
+
+The Tempo client requires a base URL and an API key. Create the key in Tempo under
+**Admin → API Keys** and give it only the **Holidays** scope: it can then read holidays
+and nothing else.
+
+```elixir
+config = [
+  base_url: "https://tempo.app.bluetab.net",
+  api_key: "tempo_your_api_key_here"
+]
+
+{:ok, _pid} = BluetabConnect.Tempo.Rest.start_link(config)
 ```
 
 ### SAP OData Client
@@ -155,6 +171,37 @@ The Spend client provides methods to retrieve expense-related data:
 # Each item:
 # %{"email" => ..., "start_date" => "YYYY-MM-DD", "duration_days" => n, "status" => "Imputada"}
 ```
+
+### Tempo REST Client
+
+The Tempo client reads the holiday calendars that Tempo keeps in sync with SAP SuccessFactors,
+so an app that only needs holidays does not need SuccessFactors credentials
+(`BluetabConnect.Sap.SuccessFactors.list_holiday_calendars/1` is what this replaces).
+
+#### List Holidays
+
+```elixir
+# Every active holiday of every calendar
+{:ok, holidays} = BluetabConnect.Tempo.Rest.list_holidays()
+
+# One calendar (the employee hub, e.g. "MADRID"), optionally within a date range
+{:ok, holidays} =
+  BluetabConnect.Tempo.Rest.list_holidays(
+    calendar_code: "MADRID",
+    date_from: ~D[2026-01-01],
+    date_to: ~D[2026-12-31]
+  )
+
+# Each item:
+# %{"calendar_code" => "MADRID", "date" => "2026-01-01", "holiday_code" => "NEW_YEAR", "name" => "New Year"}
+```
+
+Holidays that SuccessFactors stopped returning are hidden in Tempo and are not listed. Items are
+ordered by `calendar_code`, `date` and `holiday_code`; `date` is an ISO 8601 string.
+
+Errors: `{:error, :unauthorized}` (unknown or expired key), `{:error, :forbidden}` (the key lacks
+the `holidays` scope), `{:error, :bad_request}` (invalid date), `{:error, :list_holidays_error}`
+(anything else).
 
 ### SAP OData Client
 
@@ -415,6 +462,7 @@ All clients are implemented as GenServers that maintain persistent connections a
 
 - **PX REST Client**: Maintains HTTP client with bearer token authentication
 - **Spend REST Client**: Maintains HTTP client with API key (Bearer) authentication
+- **Tempo REST Client**: Maintains HTTP client with API key (Bearer) authentication
 - **SAP OData Client**: Maintains HTTP client with basic authentication and custom SSL configuration
 - **SAP SOAP Client**: Manages WSDL cache and authentication tokens
 

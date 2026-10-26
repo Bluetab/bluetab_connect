@@ -1,6 +1,6 @@
 if Code.ensure_loaded?(Igniter) do
   defmodule Mix.Tasks.BluetabConnect.Install do
-    @shortdoc "Installs BluetabConnect connectors (px_rest, sap_soap, sap_odata, sap_ssff, spend_rest)"
+    @shortdoc "Installs BluetabConnect connectors (px_rest, sap_soap, sap_odata, sap_ssff, spend_rest, tempo_rest)"
 
     @moduledoc """
     Installs one or more BluetabConnect connectors into a Phoenix application.
@@ -15,10 +15,11 @@ if Code.ensure_loaded?(Igniter) do
     - `sap_odata` - SAP OData client (`BluetabConnect.Sap.Odata`)
     - `sap_ssff` - SAP SuccessFactors OData client (`BluetabConnect.Sap.SuccessFactors`)
     - `spend_rest` - Spend REST API client (`BluetabConnect.Spend.Rest`)
+    - `tempo_rest` - Tempo REST API client (`BluetabConnect.Tempo.Rest`)
 
     ## Usage
 
-        mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff spend_rest
+        mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest
 
     ## What this installer does
 
@@ -61,17 +62,23 @@ if Code.ensure_loaded?(Igniter) do
 
     - `SPEND_API_URL` - Spend API base URL (e.g. `https://spend.app.bluetab.net`)
     - `SPEND_API_KEY` - Spend API key (Bearer token, e.g. `spend_…`)
+
+    ### tempo_rest
+
+    - `TEMPO_API_URL` - Tempo API base URL (e.g. `https://tempo.app.bluetab.net`)
+    - `TEMPO_API_KEY` - Tempo API key (Bearer token, e.g. `tempo_…`) with the `holidays` scope
     """
 
     use Igniter.Mix.Task
 
-    @valid_connectors ~w(px_rest sap_soap sap_odata sap_ssff spend_rest)
+    @valid_connectors ~w(px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest)
 
     @impl Igniter.Mix.Task
     def info(_argv, _composing_task) do
       %Igniter.Mix.Task.Info{
         group: :bluetab_connect,
-        example: "mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff spend_rest"
+        example:
+          "mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest"
       }
     end
 
@@ -171,6 +178,7 @@ if Code.ensure_loaded?(Igniter) do
     defp config_key("sap_odata"), do: "odata"
     defp config_key("sap_ssff"), do: "ssff"
     defp config_key("spend_rest"), do: "spend"
+    defp config_key("tempo_rest"), do: "tempo"
 
     defp runtime_config_block("px_rest", app_name) do
       String.trim_trailing("""
@@ -217,6 +225,14 @@ if Code.ensure_loaded?(Igniter) do
         config :#{app_name}, :spend,
           base_url: System.fetch_env!("SPEND_API_URL"),
           api_key: System.fetch_env!("SPEND_API_KEY")
+      """)
+    end
+
+    defp runtime_config_block("tempo_rest", app_name) do
+      String.trim_trailing("""
+        config :#{app_name}, :tempo,
+          base_url: System.fetch_env!("TEMPO_API_URL"),
+          api_key: System.fetch_env!("TEMPO_API_KEY")
       """)
     end
 
@@ -298,6 +314,9 @@ if Code.ensure_loaded?(Igniter) do
     defp child_exists?(content, "spend_rest"),
       do: String.contains?(content, "BluetabConnect.Spend.Rest")
 
+    defp child_exists?(content, "tempo_rest"),
+      do: String.contains?(content, "BluetabConnect.Tempo.Rest")
+
     defp child_line("px_rest", app_name),
       do: "maybe_child(BluetabConnect.Px.Rest, Application.get_env(:#{app_name}, :px))"
 
@@ -313,6 +332,9 @@ if Code.ensure_loaded?(Igniter) do
 
     defp child_line("spend_rest", app_name),
       do: "maybe_child(BluetabConnect.Spend.Rest, Application.get_env(:#{app_name}, :spend))"
+
+    defp child_line("tempo_rest", app_name),
+      do: "maybe_child(BluetabConnect.Tempo.Rest, Application.get_env(:#{app_name}, :tempo))"
 
     defp ensure_maybe_child(content) do
       if String.contains?(content, "defp maybe_child") do
@@ -516,6 +538,14 @@ if Code.ensure_loaded?(Igniter) do
           # Spend.Rest
           SPEND_API_URL=https://spend.app.bluetab.net
           SPEND_API_KEY=your-spend-api-key
+      """)
+    end
+
+    defp env_vars_for("tempo_rest") do
+      String.trim_trailing("""
+          # Tempo.Rest (API key with the holidays scope)
+          TEMPO_API_URL=https://tempo.app.bluetab.net
+          TEMPO_API_KEY=your-tempo-api-key
       """)
     end
   end
