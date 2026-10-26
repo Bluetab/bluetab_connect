@@ -203,27 +203,40 @@ defmodule BluetabConnect.Sap.Soap.Proyectos do
     end)
   end
 
-  defp parse_imputacion(
-         {_,
-          %{
-            Code: code,
-            Estado: status,
-            IdProyecto: project_id,
-            Horas: hours,
-            IdTipoHora: type_id,
-            Comentario: comment,
-            MotivoRechazo: reject_reason
-          }}
-       ),
-       do: %{
-         code: code,
-         status: status,
-         project_id: project_id,
-         hours: hours,
-         type_id: type_id,
-         comment: comment,
-         reject_reason: reject_reason
-       }
+  @doc false
+  def parse_imputacion(
+        {_,
+         %{
+           Code: code,
+           Estado: status,
+           IdProyecto: project_id,
+           Horas: hours,
+           IdTipoHora: type_id,
+           Comentario: comment,
+           MotivoRechazo: reject_reason
+         } = imputacion}
+      ),
+      do: %{
+        code: code,
+        status: status,
+        project_id: project_id,
+        hours: hours,
+        type_id: type_id,
+        comment: comment,
+        reject_reason: reject_reason,
+        precontrato: parse_precontrato(Map.get(imputacion, :Precontrato))
+      }
+
+  # SAP returns an empty element (parsed as `%{}`) when the line has no
+  # precontrato, and the PCW reference as a string otherwise.
+  defp parse_precontrato(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp parse_precontrato(_), do: nil
 
   @doc """
   Gets available hour types.
