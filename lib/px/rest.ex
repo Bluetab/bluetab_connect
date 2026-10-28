@@ -1,6 +1,13 @@
 defmodule BluetabConnect.Px.Rest do
   @moduledoc """
   PX REST Client
+
+  ## Configuration
+
+    * `:base_url` - PX base URL (e.g. `https://px.app.bluetab.net`)
+    * `:bearer_token` - PX API bearer token
+    * `:req_options` - Extra `Req` options merged into the client (optional, e.g. `:plug`
+      to stub the HTTP layer in tests)
   """
 
   use GenServer
@@ -583,16 +590,118 @@ defmodule BluetabConnect.Px.Rest do
     end
   end
 
+  @planned_hours_filter_keys ~w(employee_number doc_num months)a
+
+  @doc """
+  Lists planned hours from the PX Planned Hours API.
+
+  Returns the hours planned for employees on projects, aggregated per employee,
+  project and month. Requires a service account, admin, or business operations
+  access.
+
+  ## Options
+
+  Every filter accepts a single value or a list of values. Filters are combined
+  with AND; omitted (or `nil`) filters do not restrict the result.
+
+    * `:employee_number` - SAP employee number(s)
+    * `:doc_num` - Project(s) (`doc_num`, same as in the Projects API)
+    * `:months` - Month(s), as `"YYYY-MM"` strings or `Date`s (the day is ignored)
+
+  An empty list matches nothing, so the call returns an empty result without
+  requesting the API.
+
+  Invalid values (e.g. the month `"2026-13"`) return `{:error, :bad_request}`.
+
+  ## Returns
+
+      {:ok, %{"planned_hours" => [...], "total" => count}}
+
+  Each item includes: `employee_number`, `doc_num`, `project_name`, `month`
+  (`YYYY-MM`), `hours`. `hours` is the sum of the planned hours of the employee
+  on the project for that month.
+
+  Results are ordered by `employee_number`, `doc_num` and `month`.
+
+  ## Examples
+
+      BluetabConnect.Px.Rest.list_planned_hours()
+      BluetabConnect.Px.Rest.list_planned_hours(employee_number: 10001)
+      BluetabConnect.Px.Rest.list_planned_hours(
+        employee_number: [10001, 10002],
+        doc_num: 12345,
+        months: ["2026-03", "2026-04"]
+      )
+      BluetabConnect.Px.Rest.list_planned_hours(months: [~D[2026-03-01], ~D[2026-04-01]])
+  """
+  def list_planned_hours(opts \\ []) do
+    filters =
+      opts
+      |> Keyword.take(@planned_hours_filter_keys)
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+
+    if Enum.any?(filters, fn {_k, v} -> v == [] end) do
+      {:ok, %{"planned_hours" => [], "total" => 0}}
+    else
+      request_planned_hours(filters)
+    end
+  end
+
+  defp request_planned_hours(filters) do
+    base_req = get_client()
+
+    query_params =
+      Enum.map(filters, fn {k, v} -> {to_string(k), format_planned_hours_query_value(v)} end)
+
+    url =
+      case query_params do
+        [] -> "/api/planned-hours"
+        params -> "/api/planned-hours?" <> URI.encode_query(params)
+      end
+
+    case Req.get(base_req, url: url) do
+      {:ok, %{body: %{"planned_hours" => planned_hours, "total" => total}, status: 200}} ->
+        {:ok, %{"planned_hours" => planned_hours, "total" => total}}
+
+      {:ok, %{body: %{"error" => reason}, status: 401}} ->
+        Logger.error("Unauthorized listing planned hours: #{reason}")
+        {:error, :unauthorized}
+
+      {:ok, %{body: %{"error" => reason}, status: 400}} ->
+        Logger.error("Bad request listing planned hours: #{reason}")
+        {:error, :bad_request}
+
+      err ->
+        Logger.error("Error listing planned hours: #{inspect(err)}")
+        {:error, :list_planned_hours_error}
+    end
+  end
+
+  # List filters are sent comma-separated (`months=2026-03,2026-04`)
+  defp format_planned_hours_query_value(values) when is_list(values) do
+    Enum.map_join(values, ",", &format_planned_hours_query_value/1)
+  end
+
+  defp format_planned_hours_query_value(%module{} = value)
+       when module in [Date, DateTime, NaiveDateTime] do
+    Calendar.strftime(value, "%Y-%m")
+  end
+
+  defp format_planned_hours_query_value(value), do: to_string(value)
+
   @impl true
   def init(config) do
     base_url = Keyword.fetch!(config, :base_url)
     token = Keyword.fetch!(config, :bearer_token)
+    req_options = Keyword.get(config, :req_options, [])
 
     client =
-      Req.new(
+      [
         base_url: base_url,
         auth: {:bearer, token}
-      )
+      ]
+      |> Req.new()
+      |> Req.merge(req_options)
 
     {:ok, %{client: client}}
   end

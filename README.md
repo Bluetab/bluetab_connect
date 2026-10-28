@@ -151,6 +151,36 @@ The PX client provides methods to retrieve organizational data:
 {:ok, spend_types} = BluetabConnect.Px.Rest.list_spend_types()
 ```
 
+#### List Planned Hours
+
+Hours planned for employees on projects, aggregated per employee, project and month.
+Requires a service account, admin, or business operations token. Every filter accepts a
+single value or a list, and filters are combined with AND.
+
+```elixir
+# Every employee, project and month (can be large - prefer filtering)
+{:ok, %{"planned_hours" => planned_hours, "total" => total}} =
+  BluetabConnect.Px.Rest.list_planned_hours()
+
+# One employee on one project during some months (months as "YYYY-MM" or Date)
+{:ok, %{"planned_hours" => planned_hours}} =
+  BluetabConnect.Px.Rest.list_planned_hours(
+    employee_number: 10001,
+    doc_num: 12345,
+    months: ["2026-03", "2026-04"]
+  )
+
+# Several employees
+{:ok, _} = BluetabConnect.Px.Rest.list_planned_hours(employee_number: [10001, 10002])
+
+# Each item (ordered by employee_number, doc_num and month):
+# %{"employee_number" => 10001, "doc_num" => 12345, "project_name" => "Example Project",
+#   "month" => "2026-03", "hours" => 80.0}
+```
+
+Invalid values (e.g. the month `"2026-13"`) return `{:error, :bad_request}`. An empty list
+filter matches nothing and returns an empty result without calling the API.
+
 ### Spend REST Client
 
 The Spend client provides methods to retrieve expense-related data:
