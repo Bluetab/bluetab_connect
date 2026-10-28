@@ -4,3 +4,4 @@ variables:
     value: https://px.app.bluetab.net
   - secret: true
     name: px_token
+    description: ""
