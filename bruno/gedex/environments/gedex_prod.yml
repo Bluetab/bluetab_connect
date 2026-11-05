@@ -1,0 +1,12 @@
+name: gedex_prod
+variables:
+  - name: gedex_url
+    value: https://gedes.bluetab.net
+  - secret: true
+    name: gedex_api_key
+  - name: user_email
+    value: ann@example.com
+  - name: evaluator_email
+    value: bob@example.com
+  - name: period_id
+    value: "1"

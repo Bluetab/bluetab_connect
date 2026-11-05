@@ -1,0 +1,29 @@
+info:
+  name: briefings
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{gedex_url}}/api/v1/briefings?limit=5"
+  params:
+    - name: limit
+      value: "5"
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  The first published briefings of every person and period. Start here to check that the key works.
+
+  Needs a Gedex API key with the Briefings scope (Gedex: Admin -> API keys), set as gedex_api_key.
+  - 401: key unknown, revoked or expired
+  - 403: key valid but without the Briefings scope
+
+  Response: { "items": [...], "total": n, "limit": 5, "offset": 0 }. Only published and acknowledged
+  briefings are served; drafts and deleted ones never are. Remove the limit param to get 100 (max 500).

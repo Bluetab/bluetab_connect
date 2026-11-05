@@ -1,0 +1,26 @@
+info:
+  name: evaluations-by-user
+  type: http
+  seq: 5
+
+http:
+  method: GET
+  url: "{{gedex_url}}/api/v1/evaluations?user_email={{user_email}}&period_id={{period_id}}"
+  params:
+    - name: user_email
+      value: "{{user_email}}"
+      type: query
+    - name: period_id
+      value: "{{period_id}}"
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  The published evaluations of one person in one period. Filters match the evaluation's briefing, and
+  evaluator_email / evaluator_id work as for briefings.

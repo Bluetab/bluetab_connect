@@ -1,0 +1,28 @@
+info:
+  name: briefings-by-user
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{gedex_url}}/api/v1/briefings?user_email={{user_email}}&period_id={{period_id}}"
+  params:
+    - name: user_email
+      value: "{{user_email}}"
+      type: query
+    - name: period_id
+      value: "{{period_id}}"
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  The briefings of one person in one period. A person can have several briefings in a period; all are listed.
+
+  Change user_email and period_id in the environment. user_id (UUID) works too.
+  An unknown email or period is an empty list, not an error. A malformed id is a 400.

@@ -1,6 +1,6 @@
 if Code.ensure_loaded?(Igniter) do
   defmodule Mix.Tasks.BluetabConnect.Install do
-    @shortdoc "Installs BluetabConnect connectors (px_rest, sap_soap, sap_odata, sap_ssff, spend_rest, tempo_rest)"
+    @shortdoc "Installs BluetabConnect connectors (px_rest, sap_soap, sap_odata, sap_ssff, spend_rest, tempo_rest, gedex_rest)"
 
     @moduledoc """
     Installs one or more BluetabConnect connectors into a Phoenix application.
@@ -16,10 +16,11 @@ if Code.ensure_loaded?(Igniter) do
     - `sap_ssff` - SAP SuccessFactors OData client (`BluetabConnect.Sap.SuccessFactors`)
     - `spend_rest` - Spend REST API client (`BluetabConnect.Spend.Rest`)
     - `tempo_rest` - Tempo REST API client (`BluetabConnect.Tempo.Rest`)
+    - `gedex_rest` - Gedex REST API client (`BluetabConnect.Gedex.Rest`)
 
     ## Usage
 
-        mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest
+        mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest gedex_rest
 
     ## What this installer does
 
@@ -67,18 +68,24 @@ if Code.ensure_loaded?(Igniter) do
 
     - `TEMPO_API_URL` - Tempo API base URL (e.g. `https://tempo.app.bluetab.net`)
     - `TEMPO_API_KEY` - Tempo API key (Bearer token, e.g. `tempo_…`) with the `holidays` scope
+
+    ### gedex_rest
+
+    - `GEDEX_API_URL` - Gedex API base URL (e.g. `https://gedes.bluetab.net`)
+    - `GEDEX_API_KEY` - Gedex API key (Bearer token, e.g. `gedex_…`) with the `briefings` and/or
+      `evaluations` scope
     """
 
     use Igniter.Mix.Task
 
-    @valid_connectors ~w(px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest)
+    @valid_connectors ~w(px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest gedex_rest)
 
     @impl Igniter.Mix.Task
     def info(_argv, _composing_task) do
       %Igniter.Mix.Task.Info{
         group: :bluetab_connect,
         example:
-          "mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest"
+          "mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest gedex_rest"
       }
     end
 
@@ -179,6 +186,7 @@ if Code.ensure_loaded?(Igniter) do
     defp config_key("sap_ssff"), do: "ssff"
     defp config_key("spend_rest"), do: "spend"
     defp config_key("tempo_rest"), do: "tempo"
+    defp config_key("gedex_rest"), do: "gedex"
 
     defp runtime_config_block("px_rest", app_name) do
       String.trim_trailing("""
@@ -233,6 +241,14 @@ if Code.ensure_loaded?(Igniter) do
         config :#{app_name}, :tempo,
           base_url: System.fetch_env!("TEMPO_API_URL"),
           api_key: System.fetch_env!("TEMPO_API_KEY")
+      """)
+    end
+
+    defp runtime_config_block("gedex_rest", app_name) do
+      String.trim_trailing("""
+        config :#{app_name}, :gedex,
+          base_url: System.fetch_env!("GEDEX_API_URL"),
+          api_key: System.fetch_env!("GEDEX_API_KEY")
       """)
     end
 
@@ -317,6 +333,9 @@ if Code.ensure_loaded?(Igniter) do
     defp child_exists?(content, "tempo_rest"),
       do: String.contains?(content, "BluetabConnect.Tempo.Rest")
 
+    defp child_exists?(content, "gedex_rest"),
+      do: String.contains?(content, "BluetabConnect.Gedex.Rest")
+
     defp child_line("px_rest", app_name),
       do: "maybe_child(BluetabConnect.Px.Rest, Application.get_env(:#{app_name}, :px))"
 
@@ -335,6 +354,9 @@ if Code.ensure_loaded?(Igniter) do
 
     defp child_line("tempo_rest", app_name),
       do: "maybe_child(BluetabConnect.Tempo.Rest, Application.get_env(:#{app_name}, :tempo))"
+
+    defp child_line("gedex_rest", app_name),
+      do: "maybe_child(BluetabConnect.Gedex.Rest, Application.get_env(:#{app_name}, :gedex))"
 
     defp ensure_maybe_child(content) do
       if String.contains?(content, "defp maybe_child") do
@@ -546,6 +568,14 @@ if Code.ensure_loaded?(Igniter) do
           # Tempo.Rest (API key with the holidays scope)
           TEMPO_API_URL=https://tempo.app.bluetab.net
           TEMPO_API_KEY=your-tempo-api-key
+      """)
+    end
+
+    defp env_vars_for("gedex_rest") do
+      String.trim_trailing("""
+          # Gedex.Rest (API key with the briefings and/or evaluations scope)
+          GEDEX_API_URL=https://gedes.bluetab.net
+          GEDEX_API_KEY=your-gedex-api-key
       """)
     end
   end
