@@ -1,0 +1,25 @@
+info:
+  name: careers
+  type: http
+  seq: 7
+
+http:
+  method: GET
+  url: "{{gedes_url}}/api/v1/careers"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  Every career, in display order.
+
+  Needs a Gedes API key with the Careers and categories scope (Gedes: Admin -> API keys), set as gedes_api_key.
+  - 401: key unknown, revoked or expired
+  - 403: key valid but without the Careers and categories scope
+
+  Response: { "items": [...], "total": n, "limit": 100, "offset": 0 }. Each item: id, name, external_id, order,
+  inserted_at, updated_at. Careers are the career ladder, not data about people: all of them are listed.

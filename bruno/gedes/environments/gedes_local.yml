@@ -10,3 +10,5 @@ variables:
     value: bob@example.com
   - name: period_id
     value: "1"
+  - name: career_id
+    value: "1"

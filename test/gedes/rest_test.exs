@@ -48,9 +48,24 @@ defmodule BluetabConnect.Gedes.RestTest do
 
   defp auth_header(conn), do: conn |> Plug.Conn.get_req_header("authorization") |> List.first()
 
-  for {fun, path, resource, error} <- [
-        {:list_briefings, "/api/v1/briefings", "briefings", :list_briefings_error},
-        {:list_evaluations, "/api/v1/evaluations", "evaluations", :list_evaluations_error}
+  @person_filters [
+    user_id: "11111111-1111-1111-1111-111111111111",
+    user_email: "ann@example.com",
+    period_id: 3,
+    evaluator_id: "22222222-2222-2222-2222-222222222222",
+    evaluator_email: "bob@example.com",
+    status: :acknowledged
+  ]
+
+  # {function, path, resource, error, API key scope it needs, a sample of the filters it takes}
+  for {fun, path, resource, error, scope, filters} <- [
+        {:list_briefings, "/api/v1/briefings", "briefings", :list_briefings_error, "briefings",
+         @person_filters},
+        {:list_evaluations, "/api/v1/evaluations", "evaluations", :list_evaluations_error,
+         "evaluations", @person_filters},
+        {:list_careers, "/api/v1/careers", "careers", :list_careers_error, "careers", []},
+        {:list_categories, "/api/v1/categories", "categories", :list_categories_error, "careers",
+         [career_id: 3]}
       ] do
     describe "#{fun}/1" do
       test "requests #{path} with the API key as a bearer token" do
@@ -72,64 +87,72 @@ defmodule BluetabConnect.Gedes.RestTest do
         assert {:ok, [^item]} = apply(Rest, unquote(fun), [])
       end
 
-      test "sends the filters as query params" do
-        test = self()
+      if filters != [] do
+        test "sends the filters as query params" do
+          test = self()
 
-        stub(fn conn ->
-          send(test, {:query, URI.decode_query(conn.query_string)})
-          Req.Test.json(conn, page([]))
-        end)
+          stub(fn conn ->
+            send(test, {:query, URI.decode_query(conn.query_string)})
+            Req.Test.json(conn, page([]))
+          end)
 
-        assert {:ok, []} =
-                 apply(Rest, unquote(fun), [
-                   [
-                     user_id: "11111111-1111-1111-1111-111111111111",
-                     user_email: "ann@example.com",
-                     period_id: 3,
-                     evaluator_id: "22222222-2222-2222-2222-222222222222",
-                     evaluator_email: "bob@example.com",
-                     status: :acknowledged
-                   ]
-                 ])
+          assert {:ok, []} = apply(Rest, unquote(fun), [unquote(filters)])
 
-        assert_received {:query,
-                         %{
-                           "user_id" => "11111111-1111-1111-1111-111111111111",
-                           "user_email" => "ann@example.com",
-                           "period_id" => "3",
-                           "evaluator_id" => "22222222-2222-2222-2222-222222222222",
-                           "evaluator_email" => "bob@example.com",
-                           "status" => "acknowledged",
-                           "limit" => "500",
-                           "offset" => "0"
-                         }}
-      end
+          expected =
+            unquote(filters)
+            |> Map.new(fn {key, value} -> {to_string(key), to_string(value)} end)
+            |> Map.merge(%{"limit" => "500", "offset" => "0"})
 
-      test "leaves out nil and blank filters" do
-        test = self()
+          assert_received {:query, ^expected}
+        end
 
-        stub(fn conn ->
-          send(test, {:query, URI.decode_query(conn.query_string)})
-          Req.Test.json(conn, page([]))
-        end)
+        test "leaves out nil and blank filters" do
+          test = self()
 
-        assert {:ok, []} =
-                 apply(Rest, unquote(fun), [[user_id: nil, user_email: "  ", period_id: nil]])
+          stub(fn conn ->
+            send(test, {:query, URI.decode_query(conn.query_string)})
+            Req.Test.json(conn, page([]))
+          end)
 
-        assert_received {:query, query}
-        assert Map.keys(query) |> Enum.sort() == ["limit", "offset"]
-      end
+          keys = Keyword.keys(unquote(filters))
+          nils = Enum.map(keys, &{&1, nil})
+          blanks = Enum.map(keys, &{&1, "  "})
 
-      test "encodes special characters in filter values" do
-        test = self()
+          assert {:ok, []} = apply(Rest, unquote(fun), [nils])
+          assert {:ok, []} = apply(Rest, unquote(fun), [blanks])
 
-        stub(fn conn ->
-          send(test, {:query, URI.decode_query(conn.query_string)})
-          Req.Test.json(conn, page([]))
-        end)
+          for _ <- 1..2 do
+            assert_received {:query, query}
+            assert Map.keys(query) |> Enum.sort() == ["limit", "offset"]
+          end
+        end
 
-        assert {:ok, []} = apply(Rest, unquote(fun), [[user_email: "a&b=c d@example.com"]])
-        assert_received {:query, %{"user_email" => "a&b=c d@example.com"}}
+        test "encodes special characters in filter values" do
+          test = self()
+
+          stub(fn conn ->
+            send(test, {:query, URI.decode_query(conn.query_string)})
+            Req.Test.json(conn, page([]))
+          end)
+
+          [{key, _} | _] = unquote(filters)
+
+          assert {:ok, []} = apply(Rest, unquote(fun), [[{key, "a&b=c d@example.com"}]])
+          assert_received {:query, query}
+          assert query[to_string(key)] == "a&b=c d@example.com"
+        end
+
+        test "keeps the filters on every page" do
+          paged_stub(for(n <- 1..3, do: %{"id" => n}))
+          [{key, _} | _] = unquote(filters)
+
+          assert {:ok, [_, _, _]} = apply(Rest, unquote(fun), [[{key, 7}, {:page_size, 1}]])
+
+          for offset <- ["0", "1", "2"] do
+            assert_received {:page, %{"offset" => ^offset} = query}
+            assert query[to_string(key)] == "7"
+          end
+        end
       end
 
       test "raises on an unknown option instead of fetching everything" do
@@ -165,16 +188,6 @@ defmodule BluetabConnect.Gedes.RestTest do
         assert_received {:page, %{"limit" => "2", "offset" => "2"}}
         assert_received {:page, %{"limit" => "2", "offset" => "4"}}
         refute_received {:page, _}
-      end
-
-      test "keeps the filters on every page" do
-        paged_stub(for(n <- 1..3, do: %{"id" => n}))
-
-        assert {:ok, [_, _, _]} = apply(Rest, unquote(fun), [[period_id: 7, page_size: 1]])
-
-        for offset <- ["0", "1", "2"] do
-          assert_received {:page, %{"period_id" => "7", "offset" => ^offset}}
-        end
       end
 
       test "does one request when everything fits in a page" do
@@ -239,11 +252,11 @@ defmodule BluetabConnect.Gedes.RestTest do
         assert log =~ "Unauthorized listing #{unquote(resource)}"
       end
 
-      test "maps 403 to :forbidden and says the key needs the #{resource} scope" do
+      test "maps 403 to :forbidden and says the key needs the #{scope} scope" do
         json_stub(403, %{"error" => "Forbidden"})
 
         log = capture_log(fn -> assert {:error, :forbidden} = apply(Rest, unquote(fun), []) end)
-        assert log =~ "needs the #{unquote(resource)} scope"
+        assert log =~ "needs the #{unquote(scope)} scope"
       end
 
       test "maps 400 to :bad_request and logs Gedes's reason" do
@@ -280,6 +293,69 @@ defmodule BluetabConnect.Gedes.RestTest do
           refute log =~ "SECRET-EVALUATION-TEXT"
         end
       end
+    end
+  end
+
+  describe "catalog lists" do
+    test "list_careers/1 takes no filters, so a person filter raises" do
+      test = self()
+
+      stub(fn conn ->
+        send(test, :requested)
+        Req.Test.json(conn, page([]))
+      end)
+
+      assert_raise ArgumentError, ~r/user_id/, fn ->
+        Rest.list_careers(user_id: "11111111-1111-1111-1111-111111111111")
+      end
+
+      assert_raise ArgumentError, ~r/career_id/, fn -> Rest.list_careers(career_id: 1) end
+      refute_received :requested
+    end
+
+    test "list_categories/1 takes career_id only, so a person filter raises" do
+      test = self()
+
+      stub(fn conn ->
+        send(test, :requested)
+        Req.Test.json(conn, page([]))
+      end)
+
+      for opts <- [[user_id: "x"], [period_id: 1], [status: "published"]] do
+        assert_raise ArgumentError, fn -> Rest.list_categories(opts) end
+      end
+
+      refute_received :requested
+    end
+
+    test "list_categories/1 returns each category with its expected competency levels" do
+      category = %{
+        "id" => 4,
+        "career_id" => 1,
+        "name" => "Senior",
+        "category_codes" => ["A1"],
+        "delegatable" => true,
+        "competency_levels" => [
+          %{
+            "id" => 31,
+            "competency" => %{"id" => 7, "name" => "Communication"},
+            "level" => %{"id" => 3, "name" => "Senior"}
+          }
+        ]
+      }
+
+      json_stub(200, page([category]))
+
+      assert {:ok, [^category]} = Rest.list_categories(career_id: 1)
+    end
+
+    test "list_careers/1 and list_categories/1 map failures to their own error" do
+      json_stub(500, %{"error" => "boom"})
+
+      capture_log(fn ->
+        assert {:error, :list_careers_error} = Rest.list_careers()
+        assert {:error, :list_categories_error} = Rest.list_categories()
+      end)
     end
   end
 

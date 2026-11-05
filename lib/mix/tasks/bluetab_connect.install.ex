@@ -72,8 +72,8 @@ if Code.ensure_loaded?(Igniter) do
     ### gedes_rest
 
     - `GEDES_API_URL` - Gedes API base URL (e.g. `https://gedes.bluetab.net`)
-    - `GEDES_API_KEY` - Gedes API key (Bearer token, e.g. `gedes_…`) with the `briefings` and/or
-      `evaluations` scope
+    - `GEDES_API_KEY` - Gedes API key (Bearer token, e.g. `gedes_…`) with the `briefings`,
+      `evaluations` and/or `careers` scope
     """
 
     use Igniter.Mix.Task
@@ -573,7 +573,7 @@ if Code.ensure_loaded?(Igniter) do
 
     defp env_vars_for("gedes_rest") do
       String.trim_trailing("""
-          # Gedes.Rest (API key with the briefings and/or evaluations scope)
+          # Gedes.Rest (API key with the briefings, evaluations and/or careers scope)
           GEDES_API_URL=https://gedes.bluetab.net
           GEDES_API_KEY=your-gedes-api-key
       """)

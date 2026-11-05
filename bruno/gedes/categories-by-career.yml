@@ -1,0 +1,24 @@
+info:
+  name: categories-by-career
+  type: http
+  seq: 9
+
+http:
+  method: GET
+  url: "{{gedes_url}}/api/v1/categories?career_id={{career_id}}"
+  params:
+    - name: career_id
+      value: "{{career_id}}"
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  The categories of one career. Set career_id in the environment (an id from the careers request).
+
+  An unknown career is an empty list, not an error. A malformed career_id is a 400.

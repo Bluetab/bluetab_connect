@@ -4,8 +4,11 @@ defmodule BluetabConnect.Gedes.Rest do
 
   Connects to the Gedes app API (`/api/v1`) using an API key (Bearer token). The API is
   read-only. Gedes API keys are scoped: the key must carry the scope of the endpoint it
-  calls (`briefings` for `list_briefings/1`, `evaluations` for `list_evaluations/1`),
-  otherwise Gedes answers `403`.
+  calls, otherwise Gedes answers `403`:
+
+    * `briefings` - `list_briefings/1`
+    * `evaluations` - `list_evaluations/1`
+    * `careers` - `list_careers/1` and `list_categories/1`
 
   ## Configuration
 
@@ -26,8 +29,7 @@ defmodule BluetabConnect.Gedes.Rest do
     GenServer.call(__MODULE__, :get_client)
   end
 
-  @filter_keys ~w(user_id user_email period_id evaluator_id evaluator_email status)a
-  @list_keys @filter_keys ++ [:page_size]
+  @person_filter_keys ~w(user_id user_email period_id evaluator_id evaluator_email status)a
   @max_page_size 500
 
   @doc """
@@ -101,21 +103,82 @@ defmodule BluetabConnect.Gedes.Rest do
   """
   def list_evaluations(opts \\ []), do: list_all(:evaluations, opts)
 
+  @doc """
+  Lists every career from the Gedes careers API, in display order. Requires an API key with the
+  `careers` scope.
+
+  Careers are the organization's career ladder, not data about people, so all of them are
+  returned. Like the other lists, the client follows the pages until the list is complete and a
+  failure on any page is an error, never a partial list.
+
+  ## Options
+
+    * `:page_size` - Items asked per request, `1..#{@max_page_size}` (default `#{@max_page_size}`);
+      it only changes how many requests are made, not the result
+
+  An unknown option raises `ArgumentError`.
+
+  ## Returns
+
+      {:ok, [career, ...]}
+
+  Items are maps with string keys, as Gedes sends them: `id`, `name`, `external_id`, `order`,
+  `inserted_at` and `updated_at` (ISO 8601 in Madrid time with its offset).
+
+  ## Examples
+
+      BluetabConnect.Gedes.Rest.list_careers()
+  """
+  def list_careers(opts \\ []), do: list_all(:careers, opts)
+
+  @doc """
+  Lists every category from the Gedes categories API, grouped by career and in display order,
+  each with the competency levels expected of it. Requires an API key with the `careers` scope
+  (the same as `list_careers/1`).
+
+  Takes the same completeness rules and `:page_size` option as `list_careers/1`.
+
+  ## Options
+
+    * `:career_id` - Only the categories of this career (integer). `nil` or blank means all
+    * `:page_size` - See `list_careers/1`
+
+  An unknown option raises `ArgumentError`.
+
+  ## Returns
+
+      {:ok, [category, ...]}
+
+  Items are maps with string keys, as Gedes sends them: `id`, `career_id`, `name`,
+  `external_id`, `order`, `category_codes`, `delegatable`, `inserted_at`, `updated_at` and
+  `competency_levels`, the levels expected of the category: a list of
+  `%{"id" => ..., "competency" => %{"id" => ..., "name" => ...}, "level" => %{"id" => ..., "name" => ...}}`
+  (empty when none are set).
+
+  ## Examples
+
+      BluetabConnect.Gedes.Rest.list_categories()
+      BluetabConnect.Gedes.Rest.list_categories(career_id: 1)
+  """
+  def list_categories(opts \\ []), do: list_all(:categories, opts)
+
   defp list_all(resource, opts) do
-    opts = Keyword.validate!(opts, Enum.map(@list_keys, &{&1, nil}))
+    filter_keys = filter_keys(resource)
+    opts = Keyword.validate!(opts, Enum.map([:page_size | filter_keys], &{&1, nil}))
     page_size = page_size!(opts[:page_size])
 
     filters =
       opts
-      |> Keyword.take(@filter_keys)
+      |> Keyword.take(filter_keys)
       |> Enum.reject(fn {_key, value} -> blank?(value) end)
       |> Enum.map(fn {key, value} -> {key, to_string(value)} end)
 
     fetch_pages(get_client(), resource, filters, page_size, 0, [])
   end
 
-  # The API lists oldest-first, so what is created while we page lands on the last page.
-  # Each request advances by the items it returned, whatever limit the server applied.
+  # Briefings and evaluations are listed oldest-first, so what is created while we page lands on
+  # the last page. The catalog is listed in display order and fits one page unless `:page_size`
+  # is lowered. Each request advances by the items it returned, whatever limit the server applied.
   defp fetch_pages(client, resource, filters, page_size, offset, acc) do
     params = filters ++ [limit: page_size, offset: offset]
 
@@ -138,6 +201,17 @@ defmodule BluetabConnect.Gedes.Rest do
 
   defp path(:briefings), do: "/api/v1/briefings"
   defp path(:evaluations), do: "/api/v1/evaluations"
+  defp path(:careers), do: "/api/v1/careers"
+  defp path(:categories), do: "/api/v1/categories"
+
+  defp filter_keys(:briefings), do: @person_filter_keys
+  defp filter_keys(:evaluations), do: @person_filter_keys
+  defp filter_keys(:careers), do: []
+  defp filter_keys(:categories), do: [:career_id]
+
+  # The API key scope an endpoint needs; careers and categories share one.
+  defp scope(:categories), do: :careers
+  defp scope(resource), do: resource
 
   defp failure(resource, {:ok, %{status: 400} = resp}) do
     Logger.error("Bad request listing #{resource}: #{error_reason(resp)}")
@@ -151,14 +225,14 @@ defmodule BluetabConnect.Gedes.Rest do
 
   defp failure(resource, {:ok, %{status: 403} = resp}) do
     Logger.error(
-      "Forbidden listing #{resource} (API key needs the #{resource} scope): #{error_reason(resp)}"
+      "Forbidden listing #{resource} (API key needs the #{scope(resource)} scope): #{error_reason(resp)}"
     )
 
     {:error, :forbidden}
   end
 
-  # Responses carry people's evaluations, so only the status and Gedes's error text are logged,
-  # never a body.
+  # Responses can carry people's evaluations, so only the status and Gedes's error text are
+  # logged, never a body.
   defp failure(resource, {:ok, %{status: status} = resp}) do
     Logger.error("Error listing #{resource}: HTTP #{status} #{error_reason(resp)}")
     {:error, :"list_#{resource}_error"}
