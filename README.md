@@ -1,12 +1,13 @@
 # BluetabConnect
 
-**BluetabConnect** is an Elixir library that provides client wrappers for connecting to external enterprise systems. It offers a unified interface for interacting with PX (Project Management platform), Spend (expenses), Tempo (holiday calendars), and SAP Business One through both REST/OData and SOAP protocols.
+**BluetabConnect** is an Elixir library that provides client wrappers for connecting to external enterprise systems. It offers a unified interface for interacting with PX (Project Management platform), Spend (expenses), Tempo (holiday calendars), Gedes (briefings, evaluations, careers and categories), and SAP Business One through both REST/OData and SOAP protocols.
 
 ## Features
 
 - **PX REST Client** - Connect to PX platform to manage organizational data
 - **Spend REST Client** - Connect to Spend app for employee per-diems
 - **Tempo REST Client** - Connect to Tempo app for holiday calendars (no SAP SuccessFactors credentials needed)
+- **Gedes REST Client** - Read briefings, evaluations, careers and categories from the Gedes app (read-only, scoped API key)
 - **SAP OData Client** - Query SAP Business One data using OData protocol
 - **SAP SOAP Client** - Comprehensive time entry management and approval workflows for SAP Business One
 - **SAP SuccessFactors Client** - Query SAP SuccessFactors OData APIs
@@ -70,6 +71,24 @@ config = [
 ]
 
 {:ok, _pid} = BluetabConnect.Tempo.Rest.start_link(config)
+```
+
+### Gedes REST Client
+
+The Gedes client requires a base URL and an API key. Create the key in Gedes under
+**Admin → API keys** and give it only the scopes you need: **Briefings** to call
+`list_briefings/1`, **Evaluations** to call `list_evaluations/1`, **Careers and categories** to
+call `list_careers/1` and `list_categories/1`. Briefings and evaluations hold information about
+people (ratings and feedback), so give those scopes only to apps that need them. The careers
+scope reads the career ladder and nothing about people.
+
+```elixir
+config = [
+  base_url: "https://gedes.bluetab.net",
+  api_key: "gedes_your_api_key_here"
+]
+
+{:ok, _pid} = BluetabConnect.Gedes.Rest.start_link(config)
 ```
 
 ### SAP OData Client
@@ -232,6 +251,111 @@ ordered by `calendar_code`, `date` and `holiday_code`; `date` is an ISO 8601 str
 Errors: `{:error, :unauthorized}` (unknown or expired key), `{:error, :forbidden}` (the key lacks
 the `holidays` scope), `{:error, :bad_request}` (invalid date), `{:error, :list_holidays_error}`
 (anything else).
+
+### Gedes REST Client
+
+The Gedes client reads the briefings and evaluations that Gedes has **published**, and its
+careers and categories. The API is read-only; drafts and deleted records are never served. Full
+contract: Gedes's `docs/api.md`.
+
+#### List Briefings
+
+```elixir
+# Every published briefing, every person, every period (can be large - prefer filtering)
+{:ok, briefings} = BluetabConnect.Gedes.Rest.list_briefings()
+
+# One person (by email or user_id), optionally in one period
+{:ok, briefings} =
+  BluetabConnect.Gedes.Rest.list_briefings(user_email: "ann@example.com", period_id: 3)
+
+# What an evaluator has briefed in a period
+{:ok, briefings} =
+  BluetabConnect.Gedes.Rest.list_briefings(evaluator_id: evaluator_id, period_id: 3)
+
+# Each item (string keys, as Gedes sends them):
+# %{"id" => "6f1c…", "status" => "published", "date" => "2026-02-10",
+#   "role_description" => "…", "evaluator_comments" => "…",
+#   "user" => %{"id" => …, "email" => …, "given_name" => …, "family_name" => …, "sap_id" => …},
+#   "evaluator" => %{…} | nil, "created_by" => %{…},
+#   "period" => %{"id" => 3, "name" => "2026", "start_date" => "2026-01-01", "end_date" => "2026-12-01", "active" => true},
+#   "objectives" => [%{"id" => …, "definition" => …, "measurement" => …, "weight" => 60,
+#                      "type" => %{…} | nil, "competency" => %{…} | nil}], …}
+```
+
+#### List Evaluations
+
+```elixir
+{:ok, evaluations} =
+  BluetabConnect.Gedes.Rest.list_evaluations(user_id: user_id, period_id: 3)
+
+{:ok, evaluations} =
+  BluetabConnect.Gedes.Rest.list_evaluations(evaluator_email: "bob@example.com", status: :acknowledged)
+
+# Each item: the evaluation (`rating` "a".."d", `rationale`, `strengths`, `weaknesses`,
+# `recommendations`, …) plus `briefing_id`, `user`, `evaluator`, `created_by`, `period`,
+# `objective_ratings` and `competency_ratings`.
+```
+
+#### List Careers
+
+```elixir
+{:ok, careers} = BluetabConnect.Gedes.Rest.list_careers()
+
+# Each item: %{"id" => 1, "name" => "Technical", "external_id" => "TECH", "order" => 1,
+#              "inserted_at" => "…", "updated_at" => "…"}
+```
+
+#### List Categories
+
+```elixir
+# Every category, grouped by career and in display order
+{:ok, categories} = BluetabConnect.Gedes.Rest.list_categories()
+
+# The categories of one career
+{:ok, categories} = BluetabConnect.Gedes.Rest.list_categories(career_id: 1)
+
+# Each item: %{"id" => 4, "career_id" => 1, "name" => "Senior", "external_id" => "SR", "order" => 3,
+#              "category_codes" => ["A1", "A2"], "delegatable" => true,
+#              "inserted_at" => "…", "updated_at" => "…",
+#              "competency_levels" => [
+#                %{"id" => 31, "competency" => %{"id" => 7, "name" => "Communication"},
+#                  "level" => %{"id" => 3, "name" => "Senior"}}
+#              ]}
+```
+
+`competency_levels` are the competency levels expected of the category (the baseline evaluations
+compare competency ratings against); `[]` when none are set. Careers and categories are the
+organization's career ladder, not data about people, so every one is listed.
+
+#### Options
+
+`list_briefings/1` and `list_evaluations/1` take the same optional filters, which combine (AND).
+`nil` or blank means no filter.
+
+| Option | Meaning |
+|--------|---------|
+| `:user_id` / `:user_email` | The person (UUID, or email - case-insensitive) |
+| `:period_id` | Period id (integer). Without it, every period is listed |
+| `:evaluator_id` / `:evaluator_email` | The person's effective evaluator for that period and position. After a delegation, the original evaluator no longer matches |
+| `:status` | `"published"` or `"acknowledged"` (string or atom) |
+| `:page_size` | Items per request, `1..500` (default `500`); only changes how many requests are made |
+
+`list_categories/1` takes `:career_id` (integer) and `:page_size`; `list_careers/1` takes only
+`:page_size`.
+
+The client follows Gedes's pages until the list is complete, so the result is always the whole
+list. A request that fails on any page is an error, never a partial list. An unknown option
+raises `ArgumentError`: a misspelled filter must not silently turn into "everything".
+
+Dates are `YYYY-MM-DD`. Timestamps are ISO 8601 in Madrid time with its offset
+(`2026-03-01T10:15:00+01:00`).
+
+Errors (all four functions): `{:error, :unauthorized}` (unknown, revoked or expired key),
+`{:error, :forbidden}` (the key lacks the `briefings` / `evaluations` / `careers` scope),
+`{:error, :bad_request}` (malformed UUID or integer, unsupported status),
+`{:error, :list_briefings_error}` / `{:error, :list_evaluations_error}` /
+`{:error, :list_careers_error}` / `{:error, :list_categories_error}` (anything else). Failures
+are logged with the HTTP status and Gedes's error text, never with a response body or the key.
 
 ### SAP OData Client
 
@@ -493,6 +617,7 @@ All clients are implemented as GenServers that maintain persistent connections a
 - **PX REST Client**: Maintains HTTP client with bearer token authentication
 - **Spend REST Client**: Maintains HTTP client with API key (Bearer) authentication
 - **Tempo REST Client**: Maintains HTTP client with API key (Bearer) authentication
+- **Gedes REST Client**: Maintains HTTP client with API key (Bearer) authentication
 - **SAP OData Client**: Maintains HTTP client with basic authentication and custom SSL configuration
 - **SAP SOAP Client**: Manages WSDL cache and authentication tokens
 
