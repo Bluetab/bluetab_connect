@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: "{{gedex_url}}/api/v1/briefings?evaluator_email={{evaluator_email}}&period_id={{period_id}}"
+  url: "{{gedes_url}}/api/v1/briefings?evaluator_email={{evaluator_email}}&period_id={{period_id}}"
   params:
     - name: evaluator_email
       value: "{{evaluator_email}}"

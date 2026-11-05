@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: "{{gedex_url}}/api/v1/evaluations?limit=1"
+  url: "{{gedes_url}}/api/v1/evaluations?limit=1"
   auth: inherit
 
 settings:

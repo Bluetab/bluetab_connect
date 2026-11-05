@@ -1,17 +1,17 @@
-defmodule BluetabConnect.Gedex.RestTest do
+defmodule BluetabConnect.Gedes.RestTest do
   # The client is a named GenServer, so these tests cannot run concurrently.
   use ExUnit.Case, async: false
 
   import ExUnit.CaptureLog
 
-  alias BluetabConnect.Gedex.Rest
+  alias BluetabConnect.Gedes.Rest
 
-  @api_key "gedex_test_key"
+  @api_key "gedes_test_key"
 
   setup do
     start_supervised!({Rest,
      [
-       base_url: "https://gedex.test",
+       base_url: "https://gedes.test",
        api_key: @api_key,
        # Req retries 5xx and transport errors with back-off (~7s); the error tests would crawl
        req_options: [plug: {Req.Test, __MODULE__}, retry: false]
@@ -29,7 +29,7 @@ defmodule BluetabConnect.Gedex.RestTest do
   defp page(items, total \\ nil),
     do: %{"items" => items, "total" => total || length(items), "limit" => 500, "offset" => 0}
 
-  # Serves `all` the way Gedex does: `limit`/`offset` slice, `total` is the whole list.
+  # Serves `all` the way Gedes does: `limit`/`offset` slice, `total` is the whole list.
   defp paged_stub(all, test \\ self()) do
     stub(fn conn ->
       query = URI.decode_query(conn.query_string)
@@ -65,7 +65,7 @@ defmodule BluetabConnect.Gedex.RestTest do
         assert_received {:request, "GET", unquote(path), "Bearer " <> @api_key}
       end
 
-      test "returns the items as sent by Gedex" do
+      test "returns the items as sent by Gedes" do
         item = %{"id" => "6f1c", "status" => "published", "user" => %{"email" => "a@b.c"}}
         json_stub(200, page([item]))
 
@@ -246,7 +246,7 @@ defmodule BluetabConnect.Gedex.RestTest do
         assert log =~ "needs the #{unquote(resource)} scope"
       end
 
-      test "maps 400 to :bad_request and logs Gedex's reason" do
+      test "maps 400 to :bad_request and logs Gedes's reason" do
         json_stub(400, %{"error" => "Invalid parameter(s): period_id"})
 
         log = capture_log(fn -> assert {:error, :bad_request} = apply(Rest, unquote(fun), []) end)
@@ -288,7 +288,7 @@ defmodule BluetabConnect.Gedex.RestTest do
       Process.flag(:trap_exit, true)
 
       assert {:error, {%KeyError{key: :api_key}, _}} =
-               GenServer.start(Rest, base_url: "https://gedex.test")
+               GenServer.start(Rest, base_url: "https://gedes.test")
 
       assert {:error, {%KeyError{key: :base_url}, _}} = GenServer.start(Rest, api_key: "k")
     end

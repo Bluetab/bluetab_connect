@@ -1,7 +1,7 @@
 opencollection: 1.0.0
 
 info:
-  name: gedex
+  name: gedes
 config:
   proxy:
     inherit: true
@@ -22,7 +22,7 @@ extensions:
 request:
   auth:
     type: bearer
-    token: "{{gedex_api_key}}"
+    token: "{{gedes_api_key}}"
   headers:
     - name: Accept
       value: application/json

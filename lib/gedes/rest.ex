@@ -1,16 +1,16 @@
-defmodule BluetabConnect.Gedex.Rest do
+defmodule BluetabConnect.Gedes.Rest do
   @moduledoc """
-  Gedex REST Client
+  Gedes REST Client
 
-  Connects to the Gedex app API (`/api/v1`) using an API key (Bearer token). The API is
-  read-only. Gedex API keys are scoped: the key must carry the scope of the endpoint it
+  Connects to the Gedes app API (`/api/v1`) using an API key (Bearer token). The API is
+  read-only. Gedes API keys are scoped: the key must carry the scope of the endpoint it
   calls (`briefings` for `list_briefings/1`, `evaluations` for `list_evaluations/1`),
-  otherwise Gedex answers `403`.
+  otherwise Gedes answers `403`.
 
   ## Configuration
 
-    * `:base_url` - Gedex base URL (e.g. `https://gedes.bluetab.net`)
-    * `:api_key` - Gedex API key (`gedex_…`)
+    * `:base_url` - Gedes base URL (e.g. `https://gedes.bluetab.net`)
+    * `:api_key` - Gedes API key (`gedes_…`)
     * `:req_options` - Extra `Req` options merged into the client (optional, e.g. `:adapter`
       to stub the HTTP layer in tests)
   """
@@ -31,7 +31,7 @@ defmodule BluetabConnect.Gedex.Rest do
   @max_page_size 500
 
   @doc """
-  Lists the published briefings from the Gedex briefings API. Requires an API key with the
+  Lists the published briefings from the Gedes briefings API. Requires an API key with the
   `briefings` scope.
 
   Only published and acknowledged briefings are served; drafts and deleted ones never are. A
@@ -63,7 +63,7 @@ defmodule BluetabConnect.Gedex.Rest do
 
       {:ok, [briefing, ...]}
 
-  Items are maps with string keys, as Gedex sends them, oldest first: `id`, `status`, `date`,
+  Items are maps with string keys, as Gedes sends them, oldest first: `id`, `status`, `date`,
   `role_description`, `evaluator_comments`, `published_at`, `acknowledged_at`, `inserted_at`,
   `updated_at`, `position_id`, `user`, `evaluator` (`nil` when the person has none),
   `created_by`, `period` and `objectives`. Dates are `YYYY-MM-DD`; timestamps are ISO 8601 in
@@ -71,13 +71,13 @@ defmodule BluetabConnect.Gedex.Rest do
 
   ## Examples
 
-      BluetabConnect.Gedex.Rest.list_briefings(user_email: "ann@example.com")
-      BluetabConnect.Gedex.Rest.list_briefings(period_id: 3, evaluator_id: evaluator_id)
+      BluetabConnect.Gedes.Rest.list_briefings(user_email: "ann@example.com")
+      BluetabConnect.Gedes.Rest.list_briefings(period_id: 3, evaluator_id: evaluator_id)
   """
   def list_briefings(opts \\ []), do: list_all(:briefings, opts)
 
   @doc """
-  Lists the published evaluations from the Gedex evaluations API. Requires an API key with the
+  Lists the published evaluations from the Gedes evaluations API. Requires an API key with the
   `evaluations` scope.
 
   Takes the same options, and has the same completeness and filtering rules, as
@@ -88,7 +88,7 @@ defmodule BluetabConnect.Gedex.Rest do
 
       {:ok, [evaluation, ...]}
 
-  Items are maps with string keys, as Gedex sends them, oldest first: `id`, `briefing_id`,
+  Items are maps with string keys, as Gedes sends them, oldest first: `id`, `briefing_id`,
   `status`, `date`, `rating` (`"a"`..`"d"`), `rationale`, `strengths`, `weaknesses`,
   `recommendations`, `tags`, `published_at`, `acknowledged_at`, `inserted_at`, `updated_at`,
   `position_id`, `user`, `evaluator`, `created_by`, `period`, `objective_ratings` and
@@ -96,8 +96,8 @@ defmodule BluetabConnect.Gedex.Rest do
 
   ## Examples
 
-      BluetabConnect.Gedex.Rest.list_evaluations(user_id: user_id, period_id: 3)
-      BluetabConnect.Gedex.Rest.list_evaluations(evaluator_email: "bob@example.com")
+      BluetabConnect.Gedes.Rest.list_evaluations(user_id: user_id, period_id: 3)
+      BluetabConnect.Gedes.Rest.list_evaluations(evaluator_email: "bob@example.com")
   """
   def list_evaluations(opts \\ []), do: list_all(:evaluations, opts)
 
@@ -157,7 +157,7 @@ defmodule BluetabConnect.Gedex.Rest do
     {:error, :forbidden}
   end
 
-  # Responses carry people's evaluations, so only the status and Gedex's error text are logged,
+  # Responses carry people's evaluations, so only the status and Gedes's error text are logged,
   # never a body.
   defp failure(resource, {:ok, %{status: status} = resp}) do
     Logger.error("Error listing #{resource}: HTTP #{status} #{error_reason(resp)}")

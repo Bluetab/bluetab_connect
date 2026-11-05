@@ -1,13 +1,13 @@
 # BluetabConnect
 
-**BluetabConnect** is an Elixir library that provides client wrappers for connecting to external enterprise systems. It offers a unified interface for interacting with PX (Project Management platform), Spend (expenses), Tempo (holiday calendars), Gedex (briefings and evaluations), and SAP Business One through both REST/OData and SOAP protocols.
+**BluetabConnect** is an Elixir library that provides client wrappers for connecting to external enterprise systems. It offers a unified interface for interacting with PX (Project Management platform), Spend (expenses), Tempo (holiday calendars), Gedes (briefings and evaluations), and SAP Business One through both REST/OData and SOAP protocols.
 
 ## Features
 
 - **PX REST Client** - Connect to PX platform to manage organizational data
 - **Spend REST Client** - Connect to Spend app for employee per-diems
 - **Tempo REST Client** - Connect to Tempo app for holiday calendars (no SAP SuccessFactors credentials needed)
-- **Gedex REST Client** - Read briefings and evaluations from the Gedex app (read-only, scoped API key)
+- **Gedes REST Client** - Read briefings and evaluations from the Gedes app (read-only, scoped API key)
 - **SAP OData Client** - Query SAP Business One data using OData protocol
 - **SAP SOAP Client** - Comprehensive time entry management and approval workflows for SAP Business One
 - **SAP SuccessFactors Client** - Query SAP SuccessFactors OData APIs
@@ -73,9 +73,9 @@ config = [
 {:ok, _pid} = BluetabConnect.Tempo.Rest.start_link(config)
 ```
 
-### Gedex REST Client
+### Gedes REST Client
 
-The Gedex client requires a base URL and an API key. Create the key in Gedex under
+The Gedes client requires a base URL and an API key. Create the key in Gedes under
 **Admin → API keys** and give it only the scopes you need: **Briefings** to call
 `list_briefings/1`, **Evaluations** to call `list_evaluations/1`. Evaluations hold ratings and
 feedback about people, so give that scope only to apps that need it.
@@ -83,10 +83,10 @@ feedback about people, so give that scope only to apps that need it.
 ```elixir
 config = [
   base_url: "https://gedes.bluetab.net",
-  api_key: "gedex_your_api_key_here"
+  api_key: "gedes_your_api_key_here"
 ]
 
-{:ok, _pid} = BluetabConnect.Gedex.Rest.start_link(config)
+{:ok, _pid} = BluetabConnect.Gedes.Rest.start_link(config)
 ```
 
 ### SAP OData Client
@@ -250,26 +250,26 @@ Errors: `{:error, :unauthorized}` (unknown or expired key), `{:error, :forbidden
 the `holidays` scope), `{:error, :bad_request}` (invalid date), `{:error, :list_holidays_error}`
 (anything else).
 
-### Gedex REST Client
+### Gedes REST Client
 
-The Gedex client reads the briefings and evaluations that Gedex has **published**. The API is
-read-only; drafts and deleted records are never served. Full contract: Gedex's `docs/api.md`.
+The Gedes client reads the briefings and evaluations that Gedes has **published**. The API is
+read-only; drafts and deleted records are never served. Full contract: Gedes's `docs/api.md`.
 
 #### List Briefings
 
 ```elixir
 # Every published briefing, every person, every period (can be large - prefer filtering)
-{:ok, briefings} = BluetabConnect.Gedex.Rest.list_briefings()
+{:ok, briefings} = BluetabConnect.Gedes.Rest.list_briefings()
 
 # One person (by email or user_id), optionally in one period
 {:ok, briefings} =
-  BluetabConnect.Gedex.Rest.list_briefings(user_email: "ann@example.com", period_id: 3)
+  BluetabConnect.Gedes.Rest.list_briefings(user_email: "ann@example.com", period_id: 3)
 
 # What an evaluator has briefed in a period
 {:ok, briefings} =
-  BluetabConnect.Gedex.Rest.list_briefings(evaluator_id: evaluator_id, period_id: 3)
+  BluetabConnect.Gedes.Rest.list_briefings(evaluator_id: evaluator_id, period_id: 3)
 
-# Each item (string keys, as Gedex sends them):
+# Each item (string keys, as Gedes sends them):
 # %{"id" => "6f1c…", "status" => "published", "date" => "2026-02-10",
 #   "role_description" => "…", "evaluator_comments" => "…",
 #   "user" => %{"id" => …, "email" => …, "given_name" => …, "family_name" => …, "sap_id" => …},
@@ -283,10 +283,10 @@ read-only; drafts and deleted records are never served. Full contract: Gedex's `
 
 ```elixir
 {:ok, evaluations} =
-  BluetabConnect.Gedex.Rest.list_evaluations(user_id: user_id, period_id: 3)
+  BluetabConnect.Gedes.Rest.list_evaluations(user_id: user_id, period_id: 3)
 
 {:ok, evaluations} =
-  BluetabConnect.Gedex.Rest.list_evaluations(evaluator_email: "bob@example.com", status: :acknowledged)
+  BluetabConnect.Gedes.Rest.list_evaluations(evaluator_email: "bob@example.com", status: :acknowledged)
 
 # Each item: the evaluation (`rating` "a".."d", `rationale`, `strengths`, `weaknesses`,
 # `recommendations`, …) plus `briefing_id`, `user`, `evaluator`, `created_by`, `period`,
@@ -305,7 +305,7 @@ Both functions take the same optional filters, which combine (AND). `nil` or bla
 | `:status` | `"published"` or `"acknowledged"` (string or atom) |
 | `:page_size` | Items per request, `1..500` (default `500`); only changes how many requests are made |
 
-The client follows Gedex's pages until the list is complete, so the result is always the whole
+The client follows Gedes's pages until the list is complete, so the result is always the whole
 list. A request that fails on any page is an error, never a partial list. An unknown option
 raises `ArgumentError`: a misspelled filter must not silently turn into "everything".
 
@@ -316,7 +316,7 @@ Errors (both functions): `{:error, :unauthorized}` (unknown, revoked or expired 
 `{:error, :forbidden}` (the key lacks the `briefings` / `evaluations` scope),
 `{:error, :bad_request}` (malformed UUID or integer, unsupported status),
 `{:error, :list_briefings_error}` / `{:error, :list_evaluations_error}` (anything else). Failures
-are logged with the HTTP status and Gedex's error text, never with a response body or the key.
+are logged with the HTTP status and Gedes's error text, never with a response body or the key.
 
 ### SAP OData Client
 
@@ -578,7 +578,7 @@ All clients are implemented as GenServers that maintain persistent connections a
 - **PX REST Client**: Maintains HTTP client with bearer token authentication
 - **Spend REST Client**: Maintains HTTP client with API key (Bearer) authentication
 - **Tempo REST Client**: Maintains HTTP client with API key (Bearer) authentication
-- **Gedex REST Client**: Maintains HTTP client with API key (Bearer) authentication
+- **Gedes REST Client**: Maintains HTTP client with API key (Bearer) authentication
 - **SAP OData Client**: Maintains HTTP client with basic authentication and custom SSL configuration
 - **SAP SOAP Client**: Manages WSDL cache and authentication tokens
 

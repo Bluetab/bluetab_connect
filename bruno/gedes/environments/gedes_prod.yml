@@ -1,9 +1,9 @@
-name: gedex_local
+name: gedes_prod
 variables:
-  - name: gedex_url
-    value: http://localhost:4000
+  - name: gedes_url
+    value: https://gedes.bluetab.net
   - secret: true
-    name: gedex_api_key
+    name: gedes_api_key
   - name: user_email
     value: ann@example.com
   - name: evaluator_email

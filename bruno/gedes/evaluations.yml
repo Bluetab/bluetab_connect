@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: "{{gedex_url}}/api/v1/evaluations?limit=5"
+  url: "{{gedes_url}}/api/v1/evaluations?limit=5"
   params:
     - name: limit
       value: "5"
@@ -21,7 +21,7 @@ settings:
 docs: |-
   The first published evaluations of every person and period.
 
-  Needs a Gedex API key with the Evaluations scope (Gedex: Admin -> API keys), set as gedex_api_key.
+  Needs a Gedes API key with the Evaluations scope (Gedes: Admin -> API keys), set as gedes_api_key.
   - 401: key unknown, revoked or expired
   - 403: key valid but without the Evaluations scope
 
