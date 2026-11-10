@@ -4,10 +4,6 @@ variables:
     value: "92"
   - name: sf_url
     value: https://api55.sapsf.eu
-  - secret: true
-    name: sf_user
-  - secret: true
-    name: sf_password
   - name: sf_company
     value: ESP_0001
   - name: sf_locale
@@ -16,3 +12,9 @@ variables:
     value: BARCELONA
   - name: sf_holiday_date
     value: 2024-12-25
+  - secret: true
+    name: sf_user
+    description: ""
+  - secret: true
+    name: sf_password
+    description: ""

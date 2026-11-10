@@ -2,11 +2,13 @@ name: sap_soap_prod
 variables:
   - name: sap_soap_url
     value: http://sapsoap.bluetab.net:4101/SCLWebServiceServer/
-  - secret: true
-    name: soap_token
   - name: soap_username
     value: WEBREPORTING
-  - secret: true
-    name: soap_password
   - name: soap_connection_id
     value: "1"
+  - secret: true
+    name: soap_token
+    description: ""
+  - secret: true
+    name: soap_password
+    description: ""
