@@ -1,0 +1,39 @@
+info:
+  name: unauthorized-check
+  type: http
+  seq: 7
+
+http:
+  method: POST
+  url: "{{markt_url}}/api/v1/emails"
+  headers:
+    - name: Authorization
+      value: Bearer markt_this_key_does_not_exist
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "to": "{{recipient_email}}",
+        "variables": { "title": "Must not be sent", "message": "Must not be sent" }
+      }
+  auth: none
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "401"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  Safety check, not a feature: a key Markt does not know must be REFUSED.
+
+  Expected: 401 {"error":"Unauthorized"}, and no email. If this returns 202, the endpoint is open to anyone.
+  A key that exists but lacks the Send email scope answers 403 {"error":"Forbidden"} instead.

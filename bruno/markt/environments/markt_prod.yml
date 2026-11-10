@@ -1,0 +1,14 @@
+name: markt_prod
+variables:
+  - name: markt_url
+    value: https://markt.app.bluetab.net
+  - secret: true
+    name: markt_api_key
+    description: ""
+  - name: recipient_email
+    value: ""
+    description: Your own address. Requests to prod send real email, so it is left empty on purpose.
+  - name: recipient_name
+    value: ""
+  - name: template_slug
+    value: bia-notification

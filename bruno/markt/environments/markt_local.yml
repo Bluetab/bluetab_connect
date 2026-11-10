@@ -1,0 +1,13 @@
+name: markt_local
+variables:
+  - name: markt_url
+    value: http://localhost:4000
+  - name: recipient_email
+    value: dev@example.com
+  - name: recipient_name
+    value: Dev Person
+  - name: template_slug
+    value: bia-notification
+  - secret: true
+    name: markt_api_key
+    description: ""

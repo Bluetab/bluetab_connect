@@ -1,0 +1,47 @@
+info:
+  name: send-email-template-and-subject
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{markt_url}}/api/v1/emails"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "to": "{{recipient_email}}",
+        "template": "{{template_slug}}",
+        "subject": "Custom subject from Bruno",
+        "variables": {
+          "title": "Report ready",
+          "message": "The subject above replaces the template's."
+        }
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "202"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  "template" is the slug (the API name) of a Markt template, shown in Markt under Email -> Templates. Without it the
+  BIA notification template (bia-notification) is used. "subject" replaces the template's subject.
+
+  Markt also fills the template's variables into a custom subject (e.g. "Report: <title variable>"). This request keeps
+  a plain subject on purpose: Bruno reads the same double-curly-brace syntax itself, so a Markt variable written in a
+  request body would be taken for a Bruno variable first.
+
+  With another template, "variables" must give every variable that template needs. Markt answers 422 naming the
+  ones that are missing. Set template_slug in the environment to try one.

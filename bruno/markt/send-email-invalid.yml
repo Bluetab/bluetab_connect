@@ -1,0 +1,48 @@
+info:
+  name: send-email-invalid
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{markt_url}}/api/v1/emails"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "to": ["not-an-address"],
+        "variables": {
+          "title": "Only a title",
+          "action_url": "javascript:alert(1)"
+        }
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "422"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  A request Markt cannot send answers 422 and sends nothing:
+
+    { "error": "invalid_request",
+      "errors": [ { "field": "to[0]", "message": "is not a valid email address" } ] }
+
+  Markt checks in this order and reports the first group that fails, so fix it and send again to see the next one:
+    1. the recipients ("to", "to[0]", ...)
+    2. the values of the variables ("variables.action_url" must be an http(s) or mailto link; values must be strings)
+    3. the variables the template needs and did not get ("variables.message is required by the template")
+
+  This request has a bad recipient and a bad link, and only the recipient is reported. The Elixir client returns the
+  list as {:error, {:invalid_request, errors}}.

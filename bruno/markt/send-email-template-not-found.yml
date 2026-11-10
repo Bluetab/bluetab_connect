@@ -1,0 +1,36 @@
+info:
+  name: send-email-template-not-found
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{markt_url}}/api/v1/emails"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "to": "{{recipient_email}}",
+        "template": "there-is-no-such-template",
+        "variables": { "title": "T", "message": "M" }
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "404"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  A template slug that does not exist answers 404 { "error": "template_not_found" } and sends nothing.
+  The Elixir client returns {:error, :template_not_found}.
