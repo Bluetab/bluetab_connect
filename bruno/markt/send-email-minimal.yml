@@ -1,0 +1,38 @@
+info:
+  name: send-email-minimal
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{markt_url}}/api/v1/emails"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "to": "{{recipient_email}}",
+        "variables": {
+          "title": "Hello from Bruno",
+          "message": "The smallest notification: a title and a message."
+        }
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "202"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  Only the two required variables. The email has no button (no action_url) and comes from "BIA"
+  (the default app_name), with the subject "[BIA] Hello from Bruno".

@@ -1,0 +1,41 @@
+info:
+  name: send-email-named-recipients
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{markt_url}}/api/v1/emails"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "to": [
+          { "email": "{{recipient_email}}", "name": "{{recipient_name}}" }
+        ],
+        "variables": {
+          "app_name": "Bruno",
+          "title": "Recipients can have a name",
+          "message": "A recipient is an address, \"Name <address>\", or an object with email and name. Up to 50 per request; an address that appears twice is sent once."
+        }
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "202"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  "to" takes one recipient or a list of up to 50. Each is an address, "Name <address>" or { "email", "name" }.
+  The name appears in the To header of the email. Markt sends one email for each recipient.

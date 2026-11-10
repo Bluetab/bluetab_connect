@@ -1,6 +1,6 @@
 # BluetabConnect
 
-**BluetabConnect** is an Elixir library that provides client wrappers for connecting to external enterprise systems. It offers a unified interface for interacting with PX (Project Management platform), Spend (expenses), Tempo (holiday calendars), Gedes (briefings, evaluations, careers and categories), and SAP Business One through both REST/OData and SOAP protocols.
+**BluetabConnect** is an Elixir library that provides client wrappers for connecting to external enterprise systems. It offers a unified interface for interacting with PX (Project Management platform), Spend (expenses), Tempo (holiday calendars), Gedes (briefings, evaluations, careers and categories), Markt (email notifications), and SAP Business One through both REST/OData and SOAP protocols.
 
 ## Features
 
@@ -8,6 +8,7 @@
 - **Spend REST Client** - Connect to Spend app for employee per-diems
 - **Tempo REST Client** - Connect to Tempo app for holiday calendars (no SAP SuccessFactors credentials needed)
 - **Gedes REST Client** - Read briefings, evaluations, careers and categories from the Gedes app (read-only, scoped API key)
+- **Markt REST Client** - Send email notifications through the Markt app, with its BIA template (scoped API key)
 - **SAP OData Client** - Query SAP Business One data using OData protocol
 - **SAP SOAP Client** - Comprehensive time entry management and approval workflows for SAP Business One
 - **SAP SuccessFactors Client** - Query SAP SuccessFactors OData APIs
@@ -89,6 +90,21 @@ config = [
 ]
 
 {:ok, _pid} = BluetabConnect.Gedes.Rest.start_link(config)
+```
+
+### Markt REST Client
+
+The Markt client requires a base URL and an API key. Create the key in Markt under
+**Admin → API keys** and give it the **Send email** scope: it can then send emails and nothing
+else.
+
+```elixir
+config = [
+  base_url: "https://markt.app.bluetab.net",
+  api_key: "markt_your_api_key_here"
+]
+
+{:ok, _pid} = BluetabConnect.Markt.Rest.start_link(config)
 ```
 
 ### SAP OData Client
@@ -452,6 +468,66 @@ Errors (all four functions): `{:error, :unauthorized}` (unknown, revoked or expi
 `{:error, :list_careers_error}` / `{:error, :list_categories_error}` (anything else). Failures
 are logged with the HTTP status and Gedes's error text, never with a response body or the key.
 
+### Markt REST Client
+
+Markt sends the email notifications of the BIA apps: the app says who and what, and Markt renders
+it with an email template and delivers it. Needs an API key with the **Send email** scope.
+Contract: Markt's `docs/email.md`.
+
+#### Send an Email
+
+```elixir
+{:ok, queued} =
+  BluetabConnect.Markt.Rest.send_email(
+    to: "ana@bluetab.net",
+    variables: %{title: "Labor claim approved", message: "Your claim #4521 was approved."}
+  )
+
+# Several recipients, some with a name, and the optional parts of the template
+{:ok, queued} =
+  BluetabConnect.Markt.Rest.send_email(
+    to: ["ana@bluetab.net", %{email: "bob@bluetab.net", name: "Bob Ruiz"}],
+    variables: %{
+      app_name: "Tempo",
+      title: "Labor claim approved",
+      message: "Your claim #4521 was approved.\nThe payment is scheduled for Friday.",
+      action_url: "https://tempo.app.bluetab.net/claims/4521",
+      action_label: "View claim"
+    }
+  )
+
+# One item for each recipient:
+# %{"id" => "7db83b7e-…", "to" => "ana@bluetab.net", "status" => "pending"}
+```
+
+By default the email uses Markt's generic BIA notification template. Its variables are `title`
+and `message` (required), `app_name` (default `"BIA"`), and `action_url` / `action_label`
+(optional: with an `action_url` the email gets a button; `action_label` defaults to `"Open"`).
+Values are escaped by Markt, so they can never add markup. A `nil` value is left out, so an
+optional variable can be passed along as it is.
+
+| Option | Meaning |
+|--------|---------|
+| `:to` | **Required.** One recipient or a list of up to 50: an address, `"Name <address>"`, `%{email: _, name: _}` or `{name, address}` |
+| `:variables` | What to fill the template with (map or keyword list) |
+| `:template` | Slug of another Markt template (default: the BIA notification one, `"bia-notification"`) |
+| `:subject` | Replaces the template's subject |
+
+The emails are **queued**: `{:ok, _}` means Markt accepted the request, not that the email has
+arrived. Markt delivers in the background and retries by itself, and shows what finally failed to
+its admins. The client **never retries** a send, whatever `:req_options` say, because a retry after
+a lost answer would send the email twice; that decision is the caller's.
+
+Errors: `{:error, {:invalid_request, errors}}` (nothing was sent; `errors` is a list of
+`%{"field" => "to[0]", "message" => "is not a valid email address"}`: Markt checks the
+recipients first, then the values of the variables, then the variables the template needs, and
+reports the first group that fails), `{:error, :template_not_found}`, `{:error, :unauthorized}`
+(unknown, deleted or expired key), `{:error, :forbidden}` (the key lacks the `send_email` scope),
+`{:error, :send_email_error}` (anything else, including Markt being unreachable). An unknown
+option, or a recipient that is none of the forms above, raises `ArgumentError`. Failures are
+logged with the HTTP status and Markt's error text, never with the recipients, the variables or
+the key.
+
 ### SAP OData Client
 
 The SAP OData client provides methods to query SAP Business One data with flexible filtering and pagination:
@@ -713,6 +789,7 @@ All clients are implemented as GenServers that maintain persistent connections a
 - **Spend REST Client**: Maintains HTTP client with API key (Bearer) authentication
 - **Tempo REST Client**: Maintains HTTP client with API key (Bearer) authentication
 - **Gedes REST Client**: Maintains HTTP client with API key (Bearer) authentication
+- **Markt REST Client**: Maintains HTTP client with API key (Bearer) authentication
 - **SAP OData Client**: Maintains HTTP client with basic authentication and custom SSL configuration
 - **SAP SOAP Client**: Manages WSDL cache and authentication tokens
 
