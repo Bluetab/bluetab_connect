@@ -221,6 +221,74 @@ defmodule BluetabConnect.Px.Rest do
 
   defp normalize_absence_dates(absence), do: absence
 
+  @absence_mapping_filter_keys ~w(only_mapped is_active)a
+
+  @doc """
+  Lists the absence code to project mappings from the PX Absence Project Mappings API.
+
+  The mappings are the ones configured in PX under Operations > Absence Settings: each
+  SAP SuccessFactors time type (absence code) and the project its absences are imputed
+  to. Requires a service account.
+
+  ## Options
+
+    * `:only_mapped` - `true` returns only the codes that have a project assigned
+    * `:is_active` - Filter by the active flag of the time type (`true` / `false`)
+
+  If no options are provided, all absence codes are returned, including those without a
+  project. Invalid boolean values return `{:error, :bad_request}`.
+
+  ## Returns
+
+      {:ok, %{"mappings" => [...], "total" => count}}
+
+  Each mapping includes: `time_type_code`, `name_en`, `name_es`, `is_active`, `doc_num`,
+  `project_name`, `representation_letter`, `color`, `counts_for_vacation_balance`.
+
+  `doc_num` is the project identifier (the same one the Projects and Planned Hours APIs
+  use). `doc_num` and `project_name` are `nil` when the absence code has no project.
+
+  Results are ordered by `time_type_code`.
+
+  ## Examples
+
+      BluetabConnect.Px.Rest.list_absence_project_mappings()
+      BluetabConnect.Px.Rest.list_absence_project_mappings(only_mapped: true)
+      BluetabConnect.Px.Rest.list_absence_project_mappings(only_mapped: true, is_active: true)
+  """
+  def list_absence_project_mappings(opts \\ []) do
+    base_req = get_client()
+
+    query_params =
+      opts
+      |> Keyword.take(@absence_mapping_filter_keys)
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+      |> Enum.map(fn {k, v} -> {to_string(k), to_string(v)} end)
+
+    url =
+      case query_params do
+        [] -> "/api/absence-project-mappings"
+        params -> "/api/absence-project-mappings?" <> URI.encode_query(params)
+      end
+
+    case Req.get(base_req, url: url) do
+      {:ok, %{body: %{"mappings" => mappings, "total" => total}, status: 200}} ->
+        {:ok, %{"mappings" => mappings, "total" => total}}
+
+      {:ok, %{body: %{"error" => reason}, status: 401}} ->
+        Logger.error("Unauthorized listing absence project mappings: #{reason}")
+        {:error, :unauthorized}
+
+      {:ok, %{body: %{"error" => reason}, status: 400}} ->
+        Logger.error("Bad request listing absence project mappings: #{reason}")
+        {:error, :bad_request}
+
+      err ->
+        Logger.error("Error listing absence project mappings: #{inspect(err)}")
+        {:error, :list_absence_project_mappings_error}
+    end
+  end
+
   def list_initiatives do
     base_req = get_client()
 
