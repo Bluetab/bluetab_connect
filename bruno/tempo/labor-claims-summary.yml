@@ -1,0 +1,51 @@
+info:
+  name: labor-claims-summary
+  type: http
+  seq: 5
+
+http:
+  method: GET
+  url: "{{tempo_url}}/api/v1/labor-claims/summary?date_from={{date_from}}&date_to={{date_to}}&group_by=employee_id,project_id,status"
+  headers:
+    - name: Accept
+      value: application/vnd.api+json
+  params:
+    - name: date_from
+      value: "{{date_from}}"
+      type: query
+    - name: date_to
+      value: "{{date_to}}"
+      type: query
+    - name: group_by
+      value: employee_id,project_id,status
+      type: query
+    - name: employee_id
+      value: "92"
+      type: query
+      disabled: true
+    - name: project_id
+      value: "12345"
+      type: query
+      disabled: true
+    - name: status
+      value: approved
+      type: query
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  Hours claimed by each employee on each project in a range of dates, by status. Tempo sums them in its database.
+
+  Needs a Tempo API key with the Labor claims scope (Tempo: Admin -> API Keys), set as tempo_api_key. That scope also reaches the endpoints that approve and reject claims.
+  - 401: key unknown or expired
+  - 403: key valid but without the Labor claims scope
+
+  Response: { "items": [...] }. Each item: total_hours, entry_count, and a key for each group_by (employee_id and project_id are SAP ids, null for a user or a project with no SAP id).
+  group_by takes: employee_id, project_id, year, month, day, status, hour_type, precontrato. Tempo ignores a value it does not know, and an invalid date: the answer is then the sum of all the claims.
+  Deleted claims are not counted.

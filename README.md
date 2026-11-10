@@ -170,6 +170,42 @@ The PX client provides methods to retrieve organizational data:
 {:ok, spend_types} = BluetabConnect.Px.Rest.list_spend_types()
 ```
 
+#### List Projects
+
+Projects, paginated. Each one always has `name`, `sap_id`, `doc_num`, `start_date`, `end_date`,
+`status`, `is_time_off` and `block_date`; ask for the rest with `fields`. Full contract:
+`docs/px-api-projects.md`.
+
+```elixir
+# First page of 100
+{:ok, %{"projects" => projects, "pagination" => %{"has_next" => more?}}} =
+  BluetabConnect.Px.Rest.list_projects()
+
+# Filters, and the extra fields to return
+{:ok, %{"projects" => projects}} =
+  BluetabConnect.Px.Rest.list_projects(
+    page: 1,
+    per_page: 50,
+    status: "pst_Started",
+    client_id: 789,
+    fields: [:client_id, :owner, :cluster_id]
+  )
+
+# The tags of each project, and only the projects that have a tag (or a child of it).
+# `tags` takes an id, a list of ids or a comma-separated string; an empty list is left out.
+{:ok, %{"projects" => projects}} =
+  BluetabConnect.Px.Rest.list_projects(tags: [12, 15], fields: [:tags])
+
+# Each tag of a project (an empty list when it has none):
+# %{"id" => 12, "name" => "AWS", "dimension_id" => 3, "dimension_name" => "Tech",
+#   "parent_id" => 11, "path" => "Tech > Cloud > AWS"}
+```
+
+Tags are hierarchical. A project lists only the tags assigned to it, not their ancestors (tagged
+`AWS`, it does not list `Cloud`), while the `tags` filter includes descendants (filtering by
+`Cloud` also returns the projects tagged `AWS`). Filters the client does not list can be sent
+with `query: [cluster_id: 12]`.
+
 #### List Planned Hours
 
 Hours planned for employees on projects, aggregated per employee, project and month.
@@ -251,6 +287,41 @@ ordered by `calendar_code`, `date` and `holiday_code`; `date` is an ISO 8601 str
 Errors: `{:error, :unauthorized}` (unknown or expired key), `{:error, :forbidden}` (the key lacks
 the `holidays` scope), `{:error, :bad_request}` (invalid date), `{:error, :list_holidays_error}`
 (anything else).
+
+#### Labor Claims
+
+The hours that employees claim on projects, for each day. Tempo sums them in its database, so the
+client reads the sums (`GET /api/v1/labor-claims/summary`) and not the claims. Needs an API key
+with the **Labor claims** scope. That scope also reaches the endpoints that approve and reject
+claims; the client only reads. Contract: Tempo's `docs/labor_claims_api.md`.
+
+```elixir
+# The hours of every employee on every project in March 2026, by status
+{:ok, items} =
+  BluetabConnect.Tempo.Rest.labor_claims_summary(
+    date_from: ~D[2026-03-01],
+    date_to: ~D[2026-03-31],
+    group_by: [:employee_id, :project_id, :status]
+  )
+
+# Each item:
+# %{"employee_id" => 92, "project_id" => 12345, "status" => "approved",
+#   "total_hours" => 80.0, "entry_count" => 10}
+
+# One employee, with the totals of their claims
+{:ok, [%{"total_hours" => hours}]} = BluetabConnect.Tempo.Rest.labor_claims_summary(employee_id: 92)
+
+# The first and the last date of the claims
+{:ok, %{"min_date" => "2026-01-15", "max_date" => "2026-04-07"}} =
+  BluetabConnect.Tempo.Rest.labor_claims_date_range()
+```
+
+`employee_id` is the SAP employee number and `project_id` is the SAP id of the project (its
+`sap_id` in PX, not its `doc_num`); both are `nil` for a claim of a user or a project that Tempo has
+no SAP id for. Deleted claims are not counted. Tempo ignores a date, a status or a `group_by` that
+it cannot read and answers for all the claims, so the client refuses them with
+`{:error, :bad_request}` before asking. Other errors: `{:error, :unauthorized}`,
+`{:error, :forbidden}` (the key lacks the scope), `{:error, :labor_claims_summary_error}`.
 
 ### Gedes REST Client
 

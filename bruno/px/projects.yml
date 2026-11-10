@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: "{{px_url}}/api/projects?doc_num=97&fields=client_id,owner,is_time_off,cluster_id"
+  url: "{{px_url}}/api/projects?doc_num=97&fields=client_id,owner,is_time_off,cluster_id,tags"
   params:
     - name: page
       value: "1"
@@ -50,8 +50,12 @@ http:
       value: "1001"
       type: query
       disabled: true
+    - name: tags
+      value: 12,15
+      type: query
+      disabled: true
     - name: fields
-      value: client_id,owner,is_time_off,cluster_id
+      value: client_id,owner,is_time_off,cluster_id,tags
       type: query
   auth: inherit
 

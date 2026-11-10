@@ -403,7 +403,7 @@ defmodule BluetabConnect.Px.Rest do
   defp format_position_query_value(value) when is_boolean(value), do: to_string(value)
   defp format_position_query_value(value), do: to_string(value)
 
-  @project_filter_keys ~w(status sap_id doc_num start_date_from start_date_to end_date_from end_date_to client_id owner)a
+  @project_filter_keys ~w(status sap_id doc_num start_date_from start_date_to end_date_from end_date_to client_id owner tags)a
   @project_pagination_keys ~w(page per_page)a
   @project_passthrough_option_key :query
 
@@ -423,8 +423,12 @@ defmodule BluetabConnect.Px.Rest do
     * `:end_date_to` - Filter projects with end date to (format: YYYY-MM-DD)
     * `:client_id` - Filter by client ID
     * `:owner` - Filter by owner employee number
+    * `:tags` - Filter by tag: a tag ID, a list of tag IDs or a comma-separated string
+      (e.g., `[12, 15]`). Returns the projects that have any of those tags **or any of their
+      descendant tags**: filtering by `Cloud` also returns the projects tagged `AWS`. An empty
+      list is left out, like `nil`, so it does not restrict the result.
     * `:fields` - Additional fields to include as a list or comma-separated string
-      (e.g., `[:client_id, :owner_name, :financial_project, :reason]`)
+      (e.g., `[:client_id, :owner_name, :financial_project, :reason, :tags]`)
     * `:query` - Keyword list or map with extra API query params not explicitly listed
       (useful to expose new server-side filters without changing this client)
 
@@ -439,6 +443,9 @@ defmodule BluetabConnect.Px.Rest do
       # With field selection
       BluetabConnect.Px.Rest.list_projects(fields: [:client_id, :owner_name, :financial_project])
 
+      # With the tags of each project, and only the projects that have a tag (or a child of it)
+      BluetabConnect.Px.Rest.list_projects(tags: [12, 15], fields: [:tags])
+
       # Pass through additional query params supported by the API
       BluetabConnect.Px.Rest.list_projects(
         page: 1,
@@ -449,6 +456,15 @@ defmodule BluetabConnect.Px.Rest do
   ## Returns
 
       {:ok, %{"projects" => [...], "pagination" => %{...}}}
+
+  Each project always has `name`, `sap_id`, `doc_num`, `start_date`, `end_date`, `status`,
+  `is_time_off` and `block_date`; the rest only when asked for in `:fields`.
+
+  With `fields: [:tags]` each project has `"tags"`: the tags assigned to it, as a list of maps
+  with `"id"`, `"name"`, `"dimension_id"`, `"dimension_name"`, `"parent_id"` (`nil` for a root
+  tag) and `"path"` (the full path from the dimension, e.g. `"Tech > Cloud > AWS"`). The list is
+  empty when the project has none. Only the tags assigned to the project are listed, not their
+  ancestors: a project tagged `AWS` does not list `Cloud`.
   """
   def list_projects(opts \\ []) do
     base_req = get_client()
@@ -481,8 +497,8 @@ defmodule BluetabConnect.Px.Rest do
     base_params =
       opts
       |> Keyword.take(@project_pagination_keys ++ @project_filter_keys)
-      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
-      |> Enum.map(fn {k, v} -> {to_string(k), to_string(v)} end)
+      |> Enum.reject(fn {_k, v} -> is_nil(v) or v == [] end)
+      |> Enum.map(fn {k, v} -> {to_string(k), format_project_query_value(v)} end)
       |> Map.new()
 
     passthrough_params =
@@ -498,6 +514,12 @@ defmodule BluetabConnect.Px.Rest do
 
     Map.to_list(params)
   end
+
+  # List filters (`tags: [12, 15]`) are sent comma-separated (`tags=12,15`)
+  defp format_project_query_value(values) when is_list(values),
+    do: Enum.map_join(values, ",", &to_string/1)
+
+  defp format_project_query_value(value), do: to_string(value)
 
   defp normalize_project_opts(opts) when is_list(opts), do: opts
   defp normalize_project_opts(opts) when is_map(opts), do: Map.to_list(opts)

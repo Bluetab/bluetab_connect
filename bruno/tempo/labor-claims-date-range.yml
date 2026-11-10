@@ -1,0 +1,28 @@
+info:
+  name: labor-claims-date-range
+  type: http
+  seq: 6
+
+http:
+  method: GET
+  url: "{{tempo_url}}/api/v1/labor-claims/date-range"
+  headers:
+    - name: Accept
+      value: application/vnd.api+json
+  params:
+    - name: employee_id
+      value: "92"
+      type: query
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  The first and the last date of the labor claims: { "min_date": "2026-01-15", "max_date": "2026-04-07" }, both null when no claim matches.
+
+  Needs a Tempo API key with the Labor claims scope (Tempo: Admin -> API Keys), set as tempo_api_key.

@@ -4,7 +4,7 @@ defmodule BluetabConnect.MixProject do
   def project do
     [
       app: :bluetab_connect,
-      version: "26.10.28",
+      version: "26.11.9",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps()
