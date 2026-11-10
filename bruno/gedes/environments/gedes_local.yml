@@ -1,0 +1,14 @@
+name: gedes_local
+variables:
+  - name: gedes_url
+    value: http://localhost:4000
+  - secret: true
+    name: gedes_api_key
+  - name: user_email
+    value: ann@example.com
+  - name: evaluator_email
+    value: bob@example.com
+  - name: period_id
+    value: "1"
+  - name: career_id
+    value: "1"

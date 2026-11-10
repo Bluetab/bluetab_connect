@@ -1,6 +1,6 @@
 if Code.ensure_loaded?(Igniter) do
   defmodule Mix.Tasks.BluetabConnect.Install do
-    @shortdoc "Installs BluetabConnect connectors (px_rest, sap_soap, sap_odata, sap_ssff, spend_rest, tempo_rest)"
+    @shortdoc "Installs BluetabConnect connectors (px_rest, sap_soap, sap_odata, sap_ssff, spend_rest, tempo_rest, gedes_rest)"
 
     @moduledoc """
     Installs one or more BluetabConnect connectors into a Phoenix application.
@@ -16,10 +16,11 @@ if Code.ensure_loaded?(Igniter) do
     - `sap_ssff` - SAP SuccessFactors OData client (`BluetabConnect.Sap.SuccessFactors`)
     - `spend_rest` - Spend REST API client (`BluetabConnect.Spend.Rest`)
     - `tempo_rest` - Tempo REST API client (`BluetabConnect.Tempo.Rest`)
+    - `gedes_rest` - Gedes REST API client (`BluetabConnect.Gedes.Rest`)
 
     ## Usage
 
-        mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest
+        mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest gedes_rest
 
     ## What this installer does
 
@@ -67,18 +68,24 @@ if Code.ensure_loaded?(Igniter) do
 
     - `TEMPO_API_URL` - Tempo API base URL (e.g. `https://tempo.app.bluetab.net`)
     - `TEMPO_API_KEY` - Tempo API key (Bearer token, e.g. `tempo_…`) with the `holidays` scope
+
+    ### gedes_rest
+
+    - `GEDES_API_URL` - Gedes API base URL (e.g. `https://gedes.bluetab.net`)
+    - `GEDES_API_KEY` - Gedes API key (Bearer token, e.g. `gedes_…`) with the `briefings`,
+      `evaluations` and/or `careers` scope
     """
 
     use Igniter.Mix.Task
 
-    @valid_connectors ~w(px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest)
+    @valid_connectors ~w(px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest gedes_rest)
 
     @impl Igniter.Mix.Task
     def info(_argv, _composing_task) do
       %Igniter.Mix.Task.Info{
         group: :bluetab_connect,
         example:
-          "mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest"
+          "mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest gedes_rest"
       }
     end
 
@@ -179,6 +186,7 @@ if Code.ensure_loaded?(Igniter) do
     defp config_key("sap_ssff"), do: "ssff"
     defp config_key("spend_rest"), do: "spend"
     defp config_key("tempo_rest"), do: "tempo"
+    defp config_key("gedes_rest"), do: "gedes"
 
     defp runtime_config_block("px_rest", app_name) do
       String.trim_trailing("""
@@ -233,6 +241,14 @@ if Code.ensure_loaded?(Igniter) do
         config :#{app_name}, :tempo,
           base_url: System.fetch_env!("TEMPO_API_URL"),
           api_key: System.fetch_env!("TEMPO_API_KEY")
+      """)
+    end
+
+    defp runtime_config_block("gedes_rest", app_name) do
+      String.trim_trailing("""
+        config :#{app_name}, :gedes,
+          base_url: System.fetch_env!("GEDES_API_URL"),
+          api_key: System.fetch_env!("GEDES_API_KEY")
       """)
     end
 
@@ -317,6 +333,9 @@ if Code.ensure_loaded?(Igniter) do
     defp child_exists?(content, "tempo_rest"),
       do: String.contains?(content, "BluetabConnect.Tempo.Rest")
 
+    defp child_exists?(content, "gedes_rest"),
+      do: String.contains?(content, "BluetabConnect.Gedes.Rest")
+
     defp child_line("px_rest", app_name),
       do: "maybe_child(BluetabConnect.Px.Rest, Application.get_env(:#{app_name}, :px))"
 
@@ -335,6 +354,9 @@ if Code.ensure_loaded?(Igniter) do
 
     defp child_line("tempo_rest", app_name),
       do: "maybe_child(BluetabConnect.Tempo.Rest, Application.get_env(:#{app_name}, :tempo))"
+
+    defp child_line("gedes_rest", app_name),
+      do: "maybe_child(BluetabConnect.Gedes.Rest, Application.get_env(:#{app_name}, :gedes))"
 
     defp ensure_maybe_child(content) do
       if String.contains?(content, "defp maybe_child") do
@@ -546,6 +568,14 @@ if Code.ensure_loaded?(Igniter) do
           # Tempo.Rest (API key with the holidays scope)
           TEMPO_API_URL=https://tempo.app.bluetab.net
           TEMPO_API_KEY=your-tempo-api-key
+      """)
+    end
+
+    defp env_vars_for("gedes_rest") do
+      String.trim_trailing("""
+          # Gedes.Rest (API key with the briefings, evaluations and/or careers scope)
+          GEDES_API_URL=https://gedes.bluetab.net
+          GEDES_API_KEY=your-gedes-api-key
       """)
     end
   end

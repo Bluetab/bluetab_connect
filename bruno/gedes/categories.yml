@@ -1,0 +1,23 @@
+info:
+  name: categories
+  type: http
+  seq: 8
+
+http:
+  method: GET
+  url: "{{gedes_url}}/api/v1/categories"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  Every category, grouped by career and in display order, each with the competency levels expected of it.
+
+  Same key as careers (Careers and categories scope).
+
+  Each item: id, career_id, name, external_id, order, category_codes, delegatable, inserted_at, updated_at and
+  competency_levels (the levels expected of the category: id, competency {id, name}, level {id, name}).
