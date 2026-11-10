@@ -767,6 +767,97 @@ defmodule BluetabConnect.Px.Rest do
     end
   end
 
+  @work_assignment_filter_keys ~w(employee_number client_id cluster_id business_unit_id start_date_from start_date_to)a
+
+  @doc """
+  Lists the employee work assignments from the PX Work Assignments API.
+
+  The history of the rows that link an employee to a client, a cluster or a business unit, the
+  current ones and the past ones. Requires a service account.
+
+  ## Options
+
+  All optional and single-valued; they combine with AND. `nil` means no filter. With none, the
+  whole history is returned.
+
+    * `:employee_number` - SAP employee number
+    * `:client_id` - Assignments to that client
+    * `:cluster_id` - Assignments to that cluster, or to any client of its client groups
+    * `:business_unit_id` - Assignments to that business unit, to its clusters, or to their clients
+    * `:start_date_from` - Earliest `effective_from`, inclusive (`Date` or `YYYY-MM-DD`)
+    * `:start_date_to` - Latest `effective_from`, inclusive (`Date` or `YYYY-MM-DD`)
+
+  Invalid integers or dates, or `:start_date_from` after `:start_date_to`, return
+  `{:error, :bad_request}`. A token that is not a service account returns `{:error, :forbidden}`.
+
+  ## Returns
+
+      {:ok, %{"work_assignments" => [...], "total" => count}}
+
+  Each item includes: `id`, `employee_number`, `employee_name`, `target_type` (`client`, `cluster`
+  or `business_unit`), `source` (`automatic`, `manual` or `role`), `effective_from`,
+  `effective_to`, `is_current`, `client_id`, `client_name`, `client_group_id`,
+  `client_group_name`, `cluster_id`, `cluster_name`, `business_unit_id`, `business_unit_name`,
+  `total_hours`, `claim_days_count`, `computed_at`, `created_by` and `created_at`.
+
+  `effective_to` is `nil` (and `is_current` is `true`) for the assignment in force. The hierarchy
+  fields come from the target: a client assignment also fills its client group, cluster and
+  business unit; a cluster assignment fills the cluster and its business unit; the fields above
+  or beside the target are `nil`. `total_hours`, `claim_days_count` and `computed_at` come from the
+  automatic calculation and are `nil` for the other sources.
+
+  Results are ordered by `effective_from` descending, then `employee_number`.
+
+  ## Examples
+
+      BluetabConnect.Px.Rest.list_work_assignments()
+      BluetabConnect.Px.Rest.list_work_assignments(employee_number: 1234)
+      BluetabConnect.Px.Rest.list_work_assignments(
+        cluster_id: 12,
+        start_date_from: ~D[2026-01-01]
+      )
+  """
+  def list_work_assignments(opts \\ []) do
+    base_req = get_client()
+
+    query_params =
+      opts
+      |> Keyword.take(@work_assignment_filter_keys)
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+      |> Enum.map(fn {k, v} -> {to_string(k), format_work_assignment_query_value(v)} end)
+
+    url =
+      case query_params do
+        [] -> "/api/work-assignments"
+        params -> "/api/work-assignments?" <> URI.encode_query(params)
+      end
+
+    case Req.get(base_req, url: url) do
+      {:ok, %{body: %{"work_assignments" => work_assignments, "total" => total}, status: 200}}
+      when is_list(work_assignments) ->
+        {:ok, %{"work_assignments" => work_assignments, "total" => total}}
+
+      {:ok, %{body: %{"error" => reason}, status: 401}} ->
+        Logger.error("Unauthorized listing work assignments: #{reason}")
+        {:error, :unauthorized}
+
+      {:ok, %{body: %{"error" => reason}, status: 403}} ->
+        Logger.error("Forbidden listing work assignments (needs a service account): #{reason}")
+        {:error, :forbidden}
+
+      {:ok, %{body: %{"error" => reason}, status: 400}} ->
+        Logger.error("Bad request listing work assignments: #{reason}")
+        {:error, :bad_request}
+
+      err ->
+        Logger.error("Error listing work assignments: #{inspect(err)}")
+        {:error, :list_work_assignments_error}
+    end
+  end
+
+  defp format_work_assignment_query_value(%Date{} = date), do: Date.to_iso8601(date)
+  defp format_work_assignment_query_value(value), do: to_string(value)
+
   # List filters are sent comma-separated (`months=2026-03,2026-04`)
   defp format_planned_hours_query_value(values) when is_list(values) do
     Enum.map_join(values, ",", &format_planned_hours_query_value/1)

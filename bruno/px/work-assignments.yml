@@ -1,0 +1,36 @@
+info:
+  name: work-assignments
+  type: http
+  seq: 21
+
+http:
+  method: GET
+  url: "{{px_url}}/api/work-assignments?employee_number=1234&start_date_from=2026-01-01"
+  params:
+    - name: employee_number
+      value: "1234"
+      type: query
+    - name: start_date_from
+      value: 2026-01-01
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  The employee work assignment history: every row, current and past, that links an employee to a client, a cluster or a business unit. Requires a service account.
+
+  Optional query params, all single-valued and combined with AND:
+  - employee_number — SAP employee number
+  - client_id — assignments to that client
+  - cluster_id — assignments to that cluster or to any client of its client groups
+  - business_unit_id — assignments to that business unit, to its clusters, or to their clients
+  - start_date_from / start_date_to — range of effective_from, inclusive (YYYY-MM-DD)
+
+  With no filter at all the whole history is returned.
+
+  Expected: 200 {"work_assignments": [{id, employee_number, target_type, source, effective_from, effective_to, is_current, ...}], "total": n}, ordered by effective_from descending, then employee_number.

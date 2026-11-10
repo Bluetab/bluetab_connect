@@ -206,6 +206,146 @@ defmodule BluetabConnect.Px.RestTest do
     end
   end
 
+  describe "list_work_assignments/1" do
+    @assignment %{
+      "id" => 57,
+      "employee_number" => 1234,
+      "employee_name" => "Jane Doe",
+      "target_type" => "cluster",
+      "source" => "automatic",
+      "effective_from" => "2026-09-01",
+      "effective_to" => nil,
+      "is_current" => true,
+      "client_id" => nil,
+      "cluster_id" => 12,
+      "cluster_name" => "Banking",
+      "business_unit_id" => 3,
+      "business_unit_name" => "Financial Services",
+      "total_hours" => 812.5,
+      "claim_days_count" => 98,
+      "computed_at" => "2026-09-01T03:00:00"
+    }
+
+    test "requests /api/work-assignments with the token as a bearer token" do
+      test = self()
+
+      stub(fn conn ->
+        send(
+          test,
+          {:request, conn.method, conn.request_path, conn.query_string, auth_header(conn)}
+        )
+
+        Req.Test.json(conn, %{"work_assignments" => [], "total" => 0})
+      end)
+
+      assert {:ok, %{"work_assignments" => [], "total" => 0}} = Rest.list_work_assignments()
+      assert_received {:request, "GET", "/api/work-assignments", "", "Bearer " <> @token}
+    end
+
+    test "returns the work assignments and the total as sent by PX" do
+      json_stub(200, %{"work_assignments" => [@assignment], "total" => 1})
+
+      assert {:ok, %{"work_assignments" => [item], "total" => 1}} = Rest.list_work_assignments()
+      assert item == @assignment
+    end
+
+    test "sends the filters as query params, dates as YYYY-MM-DD" do
+      test = self()
+
+      stub(fn conn ->
+        send(test, {:query, URI.decode_query(conn.query_string)})
+        Req.Test.json(conn, %{"work_assignments" => [], "total" => 0})
+      end)
+
+      Rest.list_work_assignments(
+        employee_number: 1234,
+        cluster_id: 12,
+        client_id: 5,
+        business_unit_id: 3,
+        start_date_from: ~D[2026-01-01],
+        start_date_to: "2026-12-31"
+      )
+
+      assert_received {:query, query}
+
+      assert query == %{
+               "employee_number" => "1234",
+               "cluster_id" => "12",
+               "client_id" => "5",
+               "business_unit_id" => "3",
+               "start_date_from" => "2026-01-01",
+               "start_date_to" => "2026-12-31"
+             }
+    end
+
+    test "leaves out nil filters and ignores unknown options" do
+      test = self()
+
+      stub(fn conn ->
+        send(test, {:query, conn.query_string})
+        Req.Test.json(conn, %{"work_assignments" => [], "total" => 0})
+      end)
+
+      Rest.list_work_assignments(employee_number: nil, cluster_id: 12, nonsense: 1)
+      assert_received {:query, "cluster_id=12"}
+    end
+
+    test "maps 401 to :unauthorized" do
+      json_stub(401, %{"error" => "Unauthorized"})
+
+      log = capture_log(fn -> assert {:error, :unauthorized} = Rest.list_work_assignments() end)
+      assert log =~ "Unauthorized listing work assignments"
+    end
+
+    test "maps 403 to :forbidden" do
+      json_stub(403, %{"error" => "Service account required"})
+
+      log = capture_log(fn -> assert {:error, :forbidden} = Rest.list_work_assignments() end)
+      assert log =~ "Service account required"
+    end
+
+    test "maps 400 to :bad_request and logs the reason" do
+      json_stub(400, %{"error" => "Invalid parameter(s): start_date_from"})
+
+      log =
+        capture_log(fn ->
+          assert {:error, :bad_request} =
+                   Rest.list_work_assignments(start_date_from: "2026-13-01")
+        end)
+
+      assert log =~ "Invalid parameter(s): start_date_from"
+    end
+
+    test "maps other statuses and unexpected bodies to :list_work_assignments_error" do
+      json_stub(500, %{"error" => "boom"})
+
+      capture_log(fn ->
+        assert {:error, :list_work_assignments_error} = Rest.list_work_assignments()
+      end)
+
+      json_stub(200, %{"unexpected" => true})
+
+      capture_log(fn ->
+        assert {:error, :list_work_assignments_error} = Rest.list_work_assignments()
+      end)
+    end
+
+    test "maps transport errors to :list_work_assignments_error" do
+      stub(fn conn -> Req.Test.transport_error(conn, :econnrefused) end)
+
+      capture_log(fn ->
+        assert {:error, :list_work_assignments_error} = Rest.list_work_assignments()
+      end)
+    end
+
+    test "does not log the token" do
+      json_stub(401, %{"error" => "Unauthorized"})
+
+      log = capture_log(fn -> Rest.list_work_assignments() end)
+      refute log =~ @token
+    end
+  end
+
   describe "list_projects/1" do
     @aws_tag %{
       "id" => 12,

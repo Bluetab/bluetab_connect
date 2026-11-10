@@ -236,6 +236,30 @@ single value or a list, and filters are combined with AND.
 Invalid values (e.g. the month `"2026-13"`) return `{:error, :bad_request}`. An empty list
 filter matches nothing and returns an empty result without calling the API.
 
+#### List Work Assignments
+
+The employee work assignment history: every row, current or past, that links an employee to a
+client, a cluster or a business unit. Requires a service account. The filters are single values,
+combine with AND, and are all optional (with none, the whole history is returned).
+Full contract: [docs/px-api-work-assignments.md](docs/px-api-work-assignments.md).
+
+```elixir
+{:ok, %{"work_assignments" => assignments, "total" => total}} =
+  BluetabConnect.Px.Rest.list_work_assignments(employee_number: 1234)
+
+{:ok, _} =
+  BluetabConnect.Px.Rest.list_work_assignments(cluster_id: 12, start_date_from: ~D[2026-01-01])
+
+# Each item (ordered by effective_from descending, then employee_number):
+# %{"id" => 57, "employee_number" => 1234, "target_type" => "cluster", "source" => "automatic",
+#   "effective_from" => "2026-09-01", "effective_to" => nil, "is_current" => true,
+#   "cluster_id" => 12, "cluster_name" => "Banking", "business_unit_id" => 3,
+#   "business_unit_name" => "Financial Services", "total_hours" => 812.5,
+#   "claim_days_count" => 98, "computed_at" => "2026-09-01T03:00:00", …}
+```
+
+`effective_to` is `nil` for the assignment in force. Invalid values return `{:error, :bad_request}`.
+
 ### Spend REST Client
 
 The Spend client provides methods to retrieve expense-related data:
