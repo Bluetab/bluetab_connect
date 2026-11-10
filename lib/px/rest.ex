@@ -221,6 +221,74 @@ defmodule BluetabConnect.Px.Rest do
 
   defp normalize_absence_dates(absence), do: absence
 
+  @absence_mapping_filter_keys ~w(only_mapped is_active)a
+
+  @doc """
+  Lists the absence code to project mappings from the PX Absence Project Mappings API.
+
+  The mappings are the ones configured in PX under Operations > Absence Settings: each
+  SAP SuccessFactors time type (absence code) and the project its absences are imputed
+  to. Requires a service account.
+
+  ## Options
+
+    * `:only_mapped` - `true` returns only the codes that have a project assigned
+    * `:is_active` - Filter by the active flag of the time type (`true` / `false`)
+
+  If no options are provided, all absence codes are returned, including those without a
+  project. Invalid boolean values return `{:error, :bad_request}`.
+
+  ## Returns
+
+      {:ok, %{"mappings" => [...], "total" => count}}
+
+  Each mapping includes: `time_type_code`, `name_en`, `name_es`, `is_active`, `doc_num`,
+  `project_name`, `representation_letter`, `color`, `counts_for_vacation_balance`.
+
+  `doc_num` is the project identifier (the same one the Projects and Planned Hours APIs
+  use). `doc_num` and `project_name` are `nil` when the absence code has no project.
+
+  Results are ordered by `time_type_code`.
+
+  ## Examples
+
+      BluetabConnect.Px.Rest.list_absence_project_mappings()
+      BluetabConnect.Px.Rest.list_absence_project_mappings(only_mapped: true)
+      BluetabConnect.Px.Rest.list_absence_project_mappings(only_mapped: true, is_active: true)
+  """
+  def list_absence_project_mappings(opts \\ []) do
+    base_req = get_client()
+
+    query_params =
+      opts
+      |> Keyword.take(@absence_mapping_filter_keys)
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+      |> Enum.map(fn {k, v} -> {to_string(k), to_string(v)} end)
+
+    url =
+      case query_params do
+        [] -> "/api/absence-project-mappings"
+        params -> "/api/absence-project-mappings?" <> URI.encode_query(params)
+      end
+
+    case Req.get(base_req, url: url) do
+      {:ok, %{body: %{"mappings" => mappings, "total" => total}, status: 200}} ->
+        {:ok, %{"mappings" => mappings, "total" => total}}
+
+      {:ok, %{body: %{"error" => reason}, status: 401}} ->
+        Logger.error("Unauthorized listing absence project mappings: #{reason}")
+        {:error, :unauthorized}
+
+      {:ok, %{body: %{"error" => reason}, status: 400}} ->
+        Logger.error("Bad request listing absence project mappings: #{reason}")
+        {:error, :bad_request}
+
+      err ->
+        Logger.error("Error listing absence project mappings: #{inspect(err)}")
+        {:error, :list_absence_project_mappings_error}
+    end
+  end
+
   def list_initiatives do
     base_req = get_client()
 
@@ -403,7 +471,7 @@ defmodule BluetabConnect.Px.Rest do
   defp format_position_query_value(value) when is_boolean(value), do: to_string(value)
   defp format_position_query_value(value), do: to_string(value)
 
-  @project_filter_keys ~w(status sap_id doc_num start_date_from start_date_to end_date_from end_date_to client_id owner)a
+  @project_filter_keys ~w(status sap_id doc_num start_date_from start_date_to end_date_from end_date_to client_id owner tags)a
   @project_pagination_keys ~w(page per_page)a
   @project_passthrough_option_key :query
 
@@ -423,8 +491,12 @@ defmodule BluetabConnect.Px.Rest do
     * `:end_date_to` - Filter projects with end date to (format: YYYY-MM-DD)
     * `:client_id` - Filter by client ID
     * `:owner` - Filter by owner employee number
+    * `:tags` - Filter by tag: a tag ID, a list of tag IDs or a comma-separated string
+      (e.g., `[12, 15]`). Returns the projects that have any of those tags **or any of their
+      descendant tags**: filtering by `Cloud` also returns the projects tagged `AWS`. An empty
+      list is left out, like `nil`, so it does not restrict the result.
     * `:fields` - Additional fields to include as a list or comma-separated string
-      (e.g., `[:client_id, :owner_name, :financial_project, :reason]`)
+      (e.g., `[:client_id, :owner_name, :financial_project, :reason, :tags]`)
     * `:query` - Keyword list or map with extra API query params not explicitly listed
       (useful to expose new server-side filters without changing this client)
 
@@ -439,6 +511,9 @@ defmodule BluetabConnect.Px.Rest do
       # With field selection
       BluetabConnect.Px.Rest.list_projects(fields: [:client_id, :owner_name, :financial_project])
 
+      # With the tags of each project, and only the projects that have a tag (or a child of it)
+      BluetabConnect.Px.Rest.list_projects(tags: [12, 15], fields: [:tags])
+
       # Pass through additional query params supported by the API
       BluetabConnect.Px.Rest.list_projects(
         page: 1,
@@ -449,6 +524,15 @@ defmodule BluetabConnect.Px.Rest do
   ## Returns
 
       {:ok, %{"projects" => [...], "pagination" => %{...}}}
+
+  Each project always has `name`, `sap_id`, `doc_num`, `start_date`, `end_date`, `status`,
+  `is_time_off` and `block_date`; the rest only when asked for in `:fields`.
+
+  With `fields: [:tags]` each project has `"tags"`: the tags assigned to it, as a list of maps
+  with `"id"`, `"name"`, `"dimension_id"`, `"dimension_name"`, `"parent_id"` (`nil` for a root
+  tag) and `"path"` (the full path from the dimension, e.g. `"Tech > Cloud > AWS"`). The list is
+  empty when the project has none. Only the tags assigned to the project are listed, not their
+  ancestors: a project tagged `AWS` does not list `Cloud`.
   """
   def list_projects(opts \\ []) do
     base_req = get_client()
@@ -481,8 +565,8 @@ defmodule BluetabConnect.Px.Rest do
     base_params =
       opts
       |> Keyword.take(@project_pagination_keys ++ @project_filter_keys)
-      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
-      |> Enum.map(fn {k, v} -> {to_string(k), to_string(v)} end)
+      |> Enum.reject(fn {_k, v} -> is_nil(v) or v == [] end)
+      |> Enum.map(fn {k, v} -> {to_string(k), format_project_query_value(v)} end)
       |> Map.new()
 
     passthrough_params =
@@ -498,6 +582,12 @@ defmodule BluetabConnect.Px.Rest do
 
     Map.to_list(params)
   end
+
+  # List filters (`tags: [12, 15]`) are sent comma-separated (`tags=12,15`)
+  defp format_project_query_value(values) when is_list(values),
+    do: Enum.map_join(values, ",", &to_string/1)
+
+  defp format_project_query_value(value), do: to_string(value)
 
   defp normalize_project_opts(opts) when is_list(opts), do: opts
   defp normalize_project_opts(opts) when is_map(opts), do: Map.to_list(opts)
@@ -676,6 +766,97 @@ defmodule BluetabConnect.Px.Rest do
         {:error, :list_planned_hours_error}
     end
   end
+
+  @work_assignment_filter_keys ~w(employee_number client_id cluster_id business_unit_id start_date_from start_date_to)a
+
+  @doc """
+  Lists the employee work assignments from the PX Work Assignments API.
+
+  The history of the rows that link an employee to a client, a cluster or a business unit, the
+  current ones and the past ones. Requires a service account.
+
+  ## Options
+
+  All optional and single-valued; they combine with AND. `nil` means no filter. With none, the
+  whole history is returned.
+
+    * `:employee_number` - SAP employee number
+    * `:client_id` - Assignments to that client
+    * `:cluster_id` - Assignments to that cluster, or to any client of its client groups
+    * `:business_unit_id` - Assignments to that business unit, to its clusters, or to their clients
+    * `:start_date_from` - Earliest `effective_from`, inclusive (`Date` or `YYYY-MM-DD`)
+    * `:start_date_to` - Latest `effective_from`, inclusive (`Date` or `YYYY-MM-DD`)
+
+  Invalid integers or dates, or `:start_date_from` after `:start_date_to`, return
+  `{:error, :bad_request}`. A token that is not a service account returns `{:error, :forbidden}`.
+
+  ## Returns
+
+      {:ok, %{"work_assignments" => [...], "total" => count}}
+
+  Each item includes: `id`, `employee_number`, `employee_name`, `target_type` (`client`, `cluster`
+  or `business_unit`), `source` (`automatic`, `manual` or `role`), `effective_from`,
+  `effective_to`, `is_current`, `client_id`, `client_name`, `client_group_id`,
+  `client_group_name`, `cluster_id`, `cluster_name`, `business_unit_id`, `business_unit_name`,
+  `total_hours`, `claim_days_count`, `computed_at`, `created_by` and `created_at`.
+
+  `effective_to` is `nil` (and `is_current` is `true`) for the assignment in force. The hierarchy
+  fields come from the target: a client assignment also fills its client group, cluster and
+  business unit; a cluster assignment fills the cluster and its business unit; the fields above
+  or beside the target are `nil`. `total_hours`, `claim_days_count` and `computed_at` come from the
+  automatic calculation and are `nil` for the other sources.
+
+  Results are ordered by `effective_from` descending, then `employee_number`.
+
+  ## Examples
+
+      BluetabConnect.Px.Rest.list_work_assignments()
+      BluetabConnect.Px.Rest.list_work_assignments(employee_number: 1234)
+      BluetabConnect.Px.Rest.list_work_assignments(
+        cluster_id: 12,
+        start_date_from: ~D[2026-01-01]
+      )
+  """
+  def list_work_assignments(opts \\ []) do
+    base_req = get_client()
+
+    query_params =
+      opts
+      |> Keyword.take(@work_assignment_filter_keys)
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+      |> Enum.map(fn {k, v} -> {to_string(k), format_work_assignment_query_value(v)} end)
+
+    url =
+      case query_params do
+        [] -> "/api/work-assignments"
+        params -> "/api/work-assignments?" <> URI.encode_query(params)
+      end
+
+    case Req.get(base_req, url: url) do
+      {:ok, %{body: %{"work_assignments" => work_assignments, "total" => total}, status: 200}}
+      when is_list(work_assignments) ->
+        {:ok, %{"work_assignments" => work_assignments, "total" => total}}
+
+      {:ok, %{body: %{"error" => reason}, status: 401}} ->
+        Logger.error("Unauthorized listing work assignments: #{reason}")
+        {:error, :unauthorized}
+
+      {:ok, %{body: %{"error" => reason}, status: 403}} ->
+        Logger.error("Forbidden listing work assignments (needs a service account): #{reason}")
+        {:error, :forbidden}
+
+      {:ok, %{body: %{"error" => reason}, status: 400}} ->
+        Logger.error("Bad request listing work assignments: #{reason}")
+        {:error, :bad_request}
+
+      err ->
+        Logger.error("Error listing work assignments: #{inspect(err)}")
+        {:error, :list_work_assignments_error}
+    end
+  end
+
+  defp format_work_assignment_query_value(%Date{} = date), do: Date.to_iso8601(date)
+  defp format_work_assignment_query_value(value), do: to_string(value)
 
   # List filters are sent comma-separated (`months=2026-03,2026-04`)
   defp format_planned_hours_query_value(values) when is_list(values) do

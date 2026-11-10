@@ -6,10 +6,11 @@ variables:
     value: BLUETABES_00
   - name: sap_odata_user
     value: slaccess
-  - secret: true
-    name: sap_odata_password
   - name: odata_page_size
     value: "10000"
   - name: employee_cutoff_date
     value: 2025-01-01
     disabled: true
+  - secret: true
+    name: sap_odata_password
+    description: ""
