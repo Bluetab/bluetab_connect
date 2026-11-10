@@ -206,6 +206,127 @@ defmodule BluetabConnect.Px.RestTest do
     end
   end
 
+  describe "list_absence_project_mappings/1" do
+    test "requests /api/absence-project-mappings with the token and no filters by default" do
+      test = self()
+
+      stub(fn conn ->
+        send(
+          test,
+          {:request, conn.method, conn.request_path, conn.query_string, auth_header(conn)}
+        )
+
+        Req.Test.json(conn, %{"mappings" => [], "total" => 0})
+      end)
+
+      assert {:ok, %{"mappings" => [], "total" => 0}} = Rest.list_absence_project_mappings()
+
+      assert_received {:request, "GET", "/api/absence-project-mappings", "", auth}
+      assert auth == "Bearer #{@token}"
+    end
+
+    test "returns the mappings, keeping the codes that have no project" do
+      mappings = [
+        %{
+          "time_type_code" => "VACATION",
+          "name_en" => "Vacation",
+          "name_es" => "Vacaciones",
+          "is_active" => true,
+          "doc_num" => 98,
+          "project_name" => "Internal - Vacation",
+          "representation_letter" => "V",
+          "color" => "#3A86FF",
+          "counts_for_vacation_balance" => true
+        },
+        %{
+          "time_type_code" => "UNPAID",
+          "name_en" => "Unpaid leave",
+          "name_es" => "Permiso sin sueldo",
+          "is_active" => true,
+          "doc_num" => nil,
+          "project_name" => nil,
+          "representation_letter" => nil,
+          "color" => nil,
+          "counts_for_vacation_balance" => false
+        }
+      ]
+
+      json_stub(200, %{"mappings" => mappings, "total" => 2})
+
+      assert {:ok, %{"mappings" => ^mappings, "total" => 2}} =
+               Rest.list_absence_project_mappings()
+    end
+
+    test "sends the booleans as query filters and ignores nil and unknown options" do
+      test = self()
+
+      stub(fn conn ->
+        send(test, {:query, URI.decode_query(conn.query_string)})
+        Req.Test.json(conn, %{"mappings" => [], "total" => 0})
+      end)
+
+      assert {:ok, _} = Rest.list_absence_project_mappings(only_mapped: true, is_active: false)
+      assert_received {:query, %{"only_mapped" => "true", "is_active" => "false"} = query}
+      assert map_size(query) == 2
+
+      assert {:ok, _} = Rest.list_absence_project_mappings(only_mapped: nil, bogus: "x")
+      assert_received {:query, query}
+      assert query == %{}
+    end
+
+    test "maps 401 to :unauthorized" do
+      json_stub(401, %{"error" => "Unauthorized"})
+
+      log =
+        capture_log(fn ->
+          assert {:error, :unauthorized} = Rest.list_absence_project_mappings()
+        end)
+
+      assert log =~ "Unauthorized listing absence project mappings"
+    end
+
+    test "maps 400 to :bad_request and logs the reason" do
+      json_stub(400, %{"error" => "Invalid parameter(s): only_mapped"})
+
+      log =
+        capture_log(fn ->
+          assert {:error, :bad_request} = Rest.list_absence_project_mappings(only_mapped: "maybe")
+        end)
+
+      assert log =~ "Invalid parameter(s): only_mapped"
+    end
+
+    test "maps other statuses, unexpected bodies and transport errors" do
+      json_stub(500, %{"error" => "boom"})
+
+      capture_log(fn ->
+        assert {:error, :list_absence_project_mappings_error} =
+                 Rest.list_absence_project_mappings()
+      end)
+
+      json_stub(200, %{"unexpected" => true})
+
+      capture_log(fn ->
+        assert {:error, :list_absence_project_mappings_error} =
+                 Rest.list_absence_project_mappings()
+      end)
+
+      stub(fn conn -> Req.Test.transport_error(conn, :econnrefused) end)
+
+      capture_log(fn ->
+        assert {:error, :list_absence_project_mappings_error} =
+                 Rest.list_absence_project_mappings()
+      end)
+    end
+
+    test "does not log the token" do
+      json_stub(401, %{"error" => "Unauthorized"})
+
+      log = capture_log(fn -> Rest.list_absence_project_mappings() end)
+      refute log =~ @token
+    end
+  end
+
   describe "init/1" do
     test "requires base_url and bearer_token" do
       Process.flag(:trap_exit, true)
