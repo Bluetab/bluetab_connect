@@ -1,0 +1,31 @@
+info:
+  name: group-get
+  type: http
+  seq: 12
+
+http:
+  method: GET
+  url: "{{markt_url}}/api/v1/groups/bruno-test-group"
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  The group and its people (BluetabConnect.Markt.Rest.get_group/1). Needs the Manage groups scope.
+
+    { "data": { "slug": "bruno-test-group", "name": "...", "description": "...", "visibility": "bcc",
+                "managed_by": "<name of the key>", "member_count": 1,
+                "members": [ { "email": "...", "name": "..." } ] } }
+
+  404 group_not_found: there is no group with that slug that an app owns. 403 group_not_managed: the group exists but
+  people made it in Markt, and an app cannot read or change those. Run group-sync first.

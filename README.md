@@ -95,8 +95,9 @@ config = [
 ### Markt REST Client
 
 The Markt client requires a base URL and an API key. Create the key in Markt under
-**Admin → API keys** and give it the **Send email** scope: it can then send emails and nothing
-else.
+**Admin → API keys** and give it the scopes it needs: **Send email** to send emails, and
+**Manage groups** to make and keep up to date the groups of people an app sends to. The two are
+independent, and a key can do nothing else.
 
 ```elixir
 config = [
@@ -471,8 +472,13 @@ are logged with the HTTP status and Gedes's error text, never with a response bo
 ### Markt REST Client
 
 Markt sends the email notifications of the BIA apps: the app says who and what, and Markt renders
-it with an email template and delivers it. Needs an API key with the **Send email** scope.
-Contract: Markt's `docs/email.md`.
+it with an email template and delivers it. Needs an API key with the **Send email** scope (and
+**Manage groups** for the groups). Contract: Markt's `docs/email.md`.
+
+**Email only goes to people of the organization**: the Markt users (synced from PX) who have not
+left the company. An address that is not one is never sent to, and never added to a group; Markt
+keeps a list of them (Admin → Refused addresses). A template can use the name of the person
+(`name`, `first_name`, `last_name`, `email`): Markt fills these in, so do not pass them.
 
 #### Send an Email
 
@@ -513,8 +519,20 @@ Contract: Markt's `docs/email.md`.
     variables: %{title: "Monthly report", message: %{html: "<p>Hours: <strong>160</strong></p>"}}
   )
 
-# One item for each recipient:
+# To a group an app keeps up to date (see "Groups an app keeps up to date" below)
+{:ok, queued} =
+  BluetabConnect.Markt.Rest.send_email(
+    group: "tempo-business-operators",
+    variables: %{app_name: "Tempo", title: "Closing time changed", message: "From Monday the close is at 18:00."}
+  )
+
+# One item for each email:
 # %{"id" => "7db83b7e-…", "to" => "ana@bluetab.net", "status" => "pending"}
+#
+# An address Markt did not send to is in the list too, without an id, so one outsider does not
+# stop the rest:
+# %{"id" => nil, "to" => "outsider@gmail.com", "status" => "rejected", "reason" => "unknown_recipient"}
+# ("reason" is "unknown_recipient", or "left_company" for someone who has left)
 ```
 
 By default the email uses Markt's generic BIA notification template: a bar on top (the Bluetab
@@ -539,7 +557,8 @@ so an optional variable can be passed along as it is.
 
 | Option | Meaning |
 |--------|---------|
-| `:to` | **Required.** One recipient or a list of up to 50: an address, `"Name <address>"`, `%{email: _, name: _}` or `{name, address}` |
+| `:to` | One recipient or a list of up to 50: an address, `"Name <address>"`, `%{email: _, name: _}` or `{name, address}`. Each has to be a person of the organization, and the name in the email is the one Markt has for them (the name given is used only if it has none) |
+| `:group` | Instead of `:to` (not both): the slug of a group an app keeps up to date. It goes out as the group is set up: **one email to each person** (up to 500, each with their own name and tracking) or **one email to everyone**, who all see who it went to (up to 50; the template must not greet by name). Any key that can send can send to any group an app owns; never to a group people made in Markt |
 | `:variables` | What to fill the template with (map or keyword list) |
 | `:template` | Slug of another Markt template (default: the BIA notification one, `"bia-notification"`) |
 | `:subject` | Replaces the template's subject |
@@ -554,12 +573,88 @@ Errors: `{:error, {:invalid_request, errors}}` (nothing was sent; `errors` is a 
 recipients first, then the values of the variables, then the variables the template needs, and
 reports the first group that fails; a message can be refused as `"variables.message"` for being
 blank, for having nothing left once cleaned, or for being over 200,000 bytes),
-`{:error, :template_not_found}`, `{:error, :unauthorized}`
+`{:error, :template_not_found}`, `{:error, :group_not_found}` (`:group` is not the slug of a group
+an app owns), `{:error, :unauthorized}`
 (unknown, deleted or expired key), `{:error, :forbidden}` (the key lacks the `send_email` scope),
-`{:error, :send_email_error}` (anything else, including Markt being unreachable). An unknown
-option, or a recipient that is none of the forms above, raises `ArgumentError`. Failures are
-logged with the HTTP status and Markt's error text, never with the recipients, the variables or
-the key.
+`{:error, :send_email_error}` (anything else, including Markt being unreachable). If *nobody* in
+the call can receive email, nothing is sent and the answer is `{:invalid_request, errors}` too (one
+error for each address, e.g. `"to[0]"`: "is not a person in Markt"). An unknown option, a recipient
+that is none of the forms above, a `:group` that is not a slug, and giving both `:to` and `:group`
+raise `ArgumentError`. Failures are logged with the HTTP status and Markt's error text, never with
+the recipients, the variables or the key.
+
+#### Groups an app keeps up to date
+
+An app can have a group of people in Markt that it keeps in step with its own data, and then send
+to the group. The case: Tempo has the role *Business Operators*; on start-up it makes sure the
+group `tempo-business-operators` has exactly those people, it adds or removes someone whenever the
+role changes, and it sends its system notifications to the group instead of to a list of
+addresses. Needs an API key with the **Manage groups** scope (and **Send email** to send).
+
+```elixir
+# On start-up: make the group, or change it, and leave exactly these people in it.
+# Safe to repeat: it is the same group every time.
+{:ok, %{"data" => group, "added" => added, "removed" => removed, "rejected" => rejected}} =
+  BluetabConnect.Markt.Rest.sync_group("tempo-business-operators",
+    name: "Tempo business operators",
+    description: "People with the Business Operators role in Tempo",
+    members: Enum.map(operators, & &1.email)
+  )
+
+# Then, as the role changes
+{:ok, _} = BluetabConnect.Markt.Rest.add_group_member("tempo-business-operators", user.email)
+{:ok, _} = BluetabConnect.Markt.Rest.remove_group_member("tempo-business-operators", user.email)
+
+# What Markt has now
+{:ok, %{"member_count" => 2, "members" => [%{"email" => "ana@bluetab.net", "name" => "Ana García"}, ...]}} =
+  BluetabConnect.Markt.Rest.get_group("tempo-business-operators")
+
+# And send to it
+{:ok, queued} =
+  BluetabConnect.Markt.Rest.send_email(
+    group: "tempo-business-operators",
+    variables: %{app_name: "Tempo", title: "Closing time changed", message: "From Monday the close is at 18:00."}
+  )
+```
+
+The group is **owned by the key that made it** (it says *Managed by …* in Markt, and its people are
+not edited by hand there), and the API only touches groups made this way, never the ones people
+make in Markt. The slug is its name in the API: 3 to 80 lower case letters, digits and hyphens;
+start it with the name of the app so two apps do not meet.
+
+| Function | Does |
+|----------|------|
+| `sync_group(slug, opts)` | Makes the group or changes it. `:name` (needed to make it), `:description`, `:visibility`, `:members` |
+| `get_group(slug)` | The group and its people. Returns `{:ok, group}` |
+| `add_group_member(slug, member)` | Adds one person (nothing happens if they are in it) |
+| `remove_group_member(slug, member)` | Takes one person out (nothing happens if they are not in it) |
+
+- **`:members`**: addresses, or maps with an `:email` (up to 1000). If given, those are the people in
+  the group and the others are taken out, also whoever has left the company since; `members: []`
+  empties the group. **If not given, the people are left as they are**, so a call can change the
+  name without touching them. They have to be people of the organization: the others are not
+  added and come back in `"rejected"` (`%{"email" => _, "reason" => "unknown_recipient" | "left_company"}`),
+  and the rest are synced; an app can log them and carry on.
+- **`:visibility`**: `:bcc` (the default) sends **one email to each person**, so each can be tracked,
+  with their own name; `:public` sends **one email to everyone**, who all see who it went to, up to 50
+  people. **Leave it out to keep what is set in Markt**, where whoever manages email can change it.
+- The answers are what Markt says, with string keys: `sync_group` and `add_group_member` return
+  `{:ok, %{"data" => group, "added" => _, "removed" => _, "skipped" => _, "rejected" => [...]}}`,
+  `remove_group_member` returns `{:ok, %{"data" => group, "removed" => _}}`.
+- Unlike a send, these calls can be repeated: an answer that got lost is no reason not to call again.
+
+Errors: `{:error, {:invalid_request, errors}}` (nothing was changed; `errors` is a list of
+`%{"field" => "members[2]", "message" => "is not a valid email address"}`, also a name that is
+taken, a public group over 50 people, more than 1000 members, and, for `add_group_member`, an address
+that is not a person of the organization), `{:error, :group_not_found}` (`get_group`,
+`add_group_member` and `remove_group_member` only: `sync_group` makes the group),
+`{:error, :group_not_managed}` (people made that group in Markt: an app cannot touch it),
+`{:error, :unauthorized}`, `{:error, :forbidden}` (the key lacks the `manage_groups` scope), and
+one error of its own for anything else, including Markt being unreachable: `:get_group_error`,
+`:sync_group_error`, `:add_group_member_error`, `:remove_group_member_error`. A `slug` or a member
+that is not a non-empty string or a map with an `:email`, and an unknown option, raise
+`ArgumentError`. Failures are logged with the HTTP status and Markt's error text, never with the
+addresses or the key.
 
 ### SAP OData Client
 

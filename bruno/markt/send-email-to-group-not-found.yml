@@ -1,0 +1,41 @@
+info:
+  name: send-email-to-group-not-found
+  type: http
+  seq: 16
+
+http:
+  method: POST
+  url: "{{markt_url}}/api/v1/emails"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "group": "there-is-no-such-group",
+        "variables": { "title": "T", "message": "M" }
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "404"
+    - expression: res.body.error
+      operator: eq
+      value: "group_not_found"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  A group that does not exist, or that people made in Markt, answers 404 and sends nothing:
+
+    { "error": "group_not_found", "message": "There is no group with that slug that an app owns" }
+
+  The Elixir client returns {:error, :group_not_found}.

@@ -1,0 +1,30 @@
+info:
+  name: group-remove-member
+  type: http
+  seq: 17
+
+http:
+  method: DELETE
+  url: "{{markt_url}}/api/v1/groups/bruno-test-group/members/{{recipient_email}}"
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  Takes recipient_email out of the group (BluetabConnect.Markt.Rest.remove_group_member/2). Nothing happens if they
+  are not in it ("removed": 0). Needs the Manage groups scope.
+
+    { "data": <the group>, "removed": 1 }
+
+  It comes last in the collection on purpose: it leaves the group empty, and send-email-to-group needs someone in it.
+  Run group-add-member again to put them back.

@@ -1,0 +1,51 @@
+info:
+  name: send-email-to-group
+  type: http
+  seq: 15
+
+http:
+  method: POST
+  url: "{{markt_url}}/api/v1/emails"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "group": "bruno-test-group",
+        "variables": {
+          "app_name": "Bruno",
+          "title": "To the group",
+          "message": "This went to **everyone in bruno-test-group**."
+        }
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "202"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  Sends to the people of a group an app keeps up to date, with "group" instead of "to" (give one, not both). Needs the
+  Send email scope; any key with it can send to any group an app owns. Never to a group people made in Markt (404). Run
+  group-sync first.
+
+  How it goes out is a setting of the group:
+    - "bcc" (the default): one email to each person, with their own name and their own tracking. One item in the answer
+      for each person.
+    - "public": one email to everyone, who all see who it went to. One item, with "recipients" listing every address.
+      Nothing in it can be about one person (name, first_name, last_name and email are empty).
+
+  The people are checked when the email is sent: anyone who has left the company since is left out, and if nobody is left
+  the answer is 422.
+
+  The Elixir client: send_email(group: "bruno-test-group", variables: ...).

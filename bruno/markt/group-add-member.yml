@@ -1,0 +1,27 @@
+info:
+  name: group-add-member
+  type: http
+  seq: 13
+
+http:
+  method: PUT
+  url: "{{markt_url}}/api/v1/groups/bruno-test-group/members/{{recipient_email}}"
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  Adds one person, recipient_email (BluetabConnect.Markt.Rest.add_group_member/2). Nothing happens if they are in it
+  ("skipped": 1 and "added": 0). The @ of the address can be written as %40. Needs the Manage groups scope.
+
+  The answer is the same as group-sync's: { "data": <the group>, "added": 1, "removed": 0, "skipped": 0, "rejected": [] }.

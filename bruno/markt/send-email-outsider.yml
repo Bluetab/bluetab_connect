@@ -1,0 +1,53 @@
+info:
+  name: send-email-outsider
+  type: http
+  seq: 10
+
+http:
+  method: POST
+  url: "{{markt_url}}/api/v1/emails"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "to": ["{{recipient_email}}", "outsider@example.com"],
+        "variables": { "title": "Only one of two", "message": "This reached you; the other address is not a person of Markt." }
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "202"
+    - expression: res.body.data[1].status
+      operator: eq
+      value: "rejected"
+    - expression: res.body.data[1].reason
+      operator: eq
+      value: "unknown_recipient"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  Email only goes to people of the organization (the Markt users who have not left the company). This one names
+  your own address and one that is not a person: the first is queued, the second is not and comes back in the same
+  list, without an id, with the reason:
+
+    { "data": [
+        { "id": "7db83b7e-...", "to": "<recipient_email>", "status": "pending" },
+        { "id": null, "to": "outsider@example.com", "status": "rejected", "reason": "unknown_recipient" }
+    ] }
+
+  "reason" is "unknown_recipient" (Markt does not know the address) or "left_company" (it belonged to someone who has
+  left). One outsider does not stop the rest. If nobody in the call can receive email, the answer is 422 and nothing is
+  sent. Markt keeps a list of the refused addresses: Admin -> Refused addresses.
+
+  The Elixir client returns the list as it is: look for "status" => "rejected".

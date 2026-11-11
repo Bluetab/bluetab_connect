@@ -1,0 +1,29 @@
+info:
+  name: group-add-outsider
+  type: http
+  seq: 14
+
+http:
+  method: PUT
+  url: "{{markt_url}}/api/v1/groups/bruno-test-group/members/outsider@example.com"
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "422"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  Only people of the organization can be in a group. Adding someone who is not one answers 422 and adds nobody:
+
+    { "error": "invalid_request", "errors": [ { "field": "email", "message": "is not a person in Markt" } ] }
+
+  The Elixir client returns {:error, {:invalid_request, errors}}. In group-sync the same address would not stop the
+  others: it comes back in "rejected". The refusal is noted in Admin -> Refused addresses.
