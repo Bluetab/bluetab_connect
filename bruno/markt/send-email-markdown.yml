@@ -1,0 +1,50 @@
+info:
+  name: send-email-markdown
+  type: http
+  seq: 8
+
+http:
+  method: POST
+  url: "{{markt_url}}/api/v1/emails"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "to": "{{recipient_email}}",
+        "variables": {
+          "app_name": "Bruno",
+          "subtitle": "Monthly report",
+          "title": "Your October report",
+          "message": {
+            "markdown": "Hi,\n\nYour **October** report is ready.\n\n## Summary\n\n- Hours: 160\n- Absences: 2\n\n| Project | Hours |\n| --- | --- |\n| P300 | 120 |\n| P450 | 40 |\n\n> Remember to log the hours before Friday.\n\nSee [the full report](https://tempo.app.bluetab.net)."
+          },
+          "action_url": "https://tempo.app.bluetab.net/reports/october",
+          "action_label": "Open the report"
+        }
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "202"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  The message with structure. {"markdown": "..."} says it is Markdown; a plain string means the same, so the
+  object form is only there to be explicit.
+
+  Markdown supports headings, bold and italics, lists, tables, quotes, code, links and images (https). Markt
+  cleans the result: a tag written inside the Markdown is dropped (its text stays), and javascript: links are
+  removed.
+
+  The greeting ("Hello,") and the footer are Markt's: do not write them in the message.

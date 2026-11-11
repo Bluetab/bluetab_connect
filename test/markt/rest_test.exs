@@ -112,11 +112,49 @@ defmodule BluetabConnect.Markt.RestTest do
       assert {:ok, _} =
                Rest.send_email(
                  to: "ana@bluetab.net",
-                 variables: %{title: "T", message: "M", action_url: nil, action_label: nil}
+                 variables: %{
+                   title: "T",
+                   message: "M",
+                   subtitle: nil,
+                   action_url: nil,
+                   action_label: nil
+                 }
                )
 
       assert %{"variables" => variables} = sent_body()
       assert variables == %{"title" => "T", "message" => "M"}
+    end
+
+    test "sends the message as Markdown text, line breaks included, and the subtitle" do
+      request_stub()
+      message = "Your claim **#4521** was approved.\nThe payment is on Friday.\n\n- one\n- two"
+
+      assert {:ok, _} =
+               Rest.send_email(
+                 to: "ana@bluetab.net",
+                 variables: %{title: "T", message: message, subtitle: "Labor claims"}
+               )
+
+      assert %{"variables" => %{"message" => ^message, "subtitle" => "Labor claims"}} =
+               sent_body()
+    end
+
+    test "sends rich content as the objects Markt expects, in whichever form it is given" do
+      for {given, expected} <- [
+            {%{markdown: "Hi **team**"}, %{"markdown" => "Hi **team**"}},
+            {%{html: "<p>Hi</p>"}, %{"html" => "<p>Hi</p>"}},
+            {%{"html" => "<p>Hi</p>"}, %{"html" => "<p>Hi</p>"}}
+          ] do
+        request_stub()
+
+        assert {:ok, _} =
+                 Rest.send_email(
+                   to: "ana@bluetab.net",
+                   variables: %{title: "T", message: given}
+                 )
+
+        assert %{"variables" => %{"message" => ^expected}} = sent_body()
+      end
     end
 
     test "keeps the variables' values as they are, so Markt can tell numbers from text" do
@@ -277,6 +315,23 @@ defmodule BluetabConnect.Markt.RestTest do
 
       assert log =~ "to[0] is not a valid email address"
       assert log =~ "variables.message is required by the template"
+    end
+
+    test "reports a message Markt refuses like any other field, without logging the message" do
+      errors = [%{"field" => "variables.message", "message" => "has no content"}]
+      json_stub(422, %{"error" => "invalid_request", "errors" => errors})
+
+      log =
+        capture_log(fn ->
+          assert {:error, {:invalid_request, ^errors}} =
+                   Rest.send_email(
+                     to: "ana@bluetab.net",
+                     variables: %{title: "T", message: "<script>alert(1)</script>"}
+                   )
+        end)
+
+      assert log =~ "variables.message has no content"
+      refute log =~ "alert(1)"
     end
 
     test "maps 404 template_not_found to :template_not_found" do

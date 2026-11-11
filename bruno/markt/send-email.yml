@@ -16,8 +16,9 @@ http:
         "to": "{{recipient_email}}",
         "variables": {
           "app_name": "Bruno",
+          "subtitle": "Labor claims",
           "title": "Labor claim approved",
-          "message": "Your claim #4521 was approved.\nThe payment is scheduled for Friday.",
+          "message": "Your claim **#4521** was approved.\nThe payment is scheduled for Friday.\n\n- Amount: 120 EUR\n- Date: 14 November",
           "action_url": "https://tempo.app.bluetab.net/claims/4521",
           "action_label": "View claim"
         }
@@ -48,5 +49,9 @@ docs: |-
   Response 202: { "data": [ { "id": "...", "to": "...", "status": "pending" } ] }. Accepted means queued, not delivered:
   Markt sends right after, in the background. Find the email by its id in Markt: Admin -> Email activity.
 
-  BIA template variables: title and message are required; app_name (default BIA), action_url (adds a button) and
-  action_label (default Open) are optional. Values are escaped, line breaks in message are kept.
+  BIA template variables: title and message are required; subtitle, app_name (default BIA), action_url (adds a
+  button) and action_label (default Open) are optional.
+
+  The email is a bar on top (logo, app name, subtitle), a greeting, the message and a footer. title is the subject
+  only: it is not shown in the body. message is Markdown (a plain string works too, and line breaks are kept); the
+  other values are plain text and are escaped.

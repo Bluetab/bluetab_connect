@@ -36,18 +36,29 @@ defmodule BluetabConnect.Markt.Rest do
   Sends an email through Markt (`POST /api/v1/emails`), one for each recipient. Requires an API
   key with the `send_email` scope.
 
-  By default the email uses Markt's generic BIA notification template, which takes these
-  `:variables`:
+  By default the email uses Markt's generic BIA notification template: a bar on top with the
+  Bluetab logo, the app name and a subtitle, a greeting, the message and a footer. It takes
+  these `:variables`:
 
-    * `:title` (required) - The heading, and part of the subject (`[App] Title`)
-    * `:message` (required) - The text. Line breaks are kept; it is plain text, so any markup in
-      it is shown, not interpreted
-    * `:app_name` - Shown in the header and the subject. Default `"BIA"`
+    * `:title` (required) - The subject of the email (`[App] Title`). It is **not shown in the
+      body**: if you want a heading, write it in the message
+    * `:message` (required) - The body, in **Markdown** (headings, lists, tables, links, quotes,
+      code). A plain string works as it always did: a line break stays a line break and a blank
+      line starts a paragraph. For HTML give `%{html: "<p>…</p>"}`; `%{markdown: "…"}` says
+      "Markdown" explicitly. Markt removes whatever could run (scripts, forms, event handlers,
+      `javascript:` links), and a tag written inside Markdown is dropped (its text stays)
+    * `:subtitle` - Text on the right of the bar on top, e.g. the section of the app. Optional
+    * `:app_name` - Shown next to the logo, in the subject and in the footer. Default `"BIA"`
     * `:action_url` - If given, the email has a button that links to it. Must be an `http(s)://`
       or `mailto:` link
     * `:action_label` - The text of that button. Default `"Open"`
 
-  Values are escaped by Markt, so they can never add markup to the email.
+  The other values are plain text: Markt escapes them, so they can never add markup.
+
+  The message is read as Markdown, so `*`, `_`, a leading `#` or `-`, and `<tags>` in it mean
+  something. That matters when it includes text you did not write (a name, something a user
+  typed): escape the Markdown characters with a backslash, or send the message as `%{html: …}`
+  with that text escaped.
 
   ## Options
 
@@ -78,7 +89,9 @@ defmodule BluetabConnect.Markt.Rest do
       `%{"field" => "to[0]", "message" => "is not a valid email address"}` (`"to[n]"`,
       `"variables.title"`, ...). Markt checks the recipients first, then the values of the
       variables, then the variables the template needs, and reports the problems of the first of
-      those that fails; after fixing them a call may show the next group
+      those that fails; after fixing them a call may show the next group. A message can also be
+      refused (`"variables.message"`) for being blank, for having nothing left once cleaned (for
+      example only a `<script>`), or for being over 200,000 bytes
     * `{:error, :template_not_found}` - `:template` is not the slug of any template
     * `{:error, :unauthorized}` - Unknown, deleted or expired key
     * `{:error, :forbidden}` - The key lacks the `send_email` scope
@@ -102,11 +115,26 @@ defmodule BluetabConnect.Markt.Rest do
         to: ["ana@bluetab.net", %{email: "bob@bluetab.net", name: "Bob Ruiz"}],
         variables: %{
           app_name: "Tempo",
+          subtitle: "Labor claims",
           title: "Labor claim approved",
-          message: "Your claim #4521 was approved.\\nThe payment is scheduled for Friday.",
+          message: "Your claim **#4521** was approved.\\nThe payment is scheduled for Friday.",
           action_url: "https://tempo.app.bluetab.net/claims/4521",
           action_label: "View claim"
         }
+      )
+
+      # The message with structure (Markdown), or written in HTML
+      BluetabConnect.Markt.Rest.send_email(
+        to: "ana@bluetab.net",
+        variables: %{
+          title: "Monthly report",
+          message: "## Summary\\n\\n- Hours: 160\\n- Absences: 2\\n\\nSee [the report](https://tempo.app.bluetab.net)."
+        }
+      )
+
+      BluetabConnect.Markt.Rest.send_email(
+        to: "ana@bluetab.net",
+        variables: %{title: "Monthly report", message: %{html: "<p>Hours: <strong>160</strong></p>"}}
       )
   """
   def send_email(opts) when is_list(opts) do

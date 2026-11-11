@@ -489,22 +489,53 @@ Contract: Markt's `docs/email.md`.
     to: ["ana@bluetab.net", %{email: "bob@bluetab.net", name: "Bob Ruiz"}],
     variables: %{
       app_name: "Tempo",
+      subtitle: "Labor claims",
       title: "Labor claim approved",
-      message: "Your claim #4521 was approved.\nThe payment is scheduled for Friday.",
+      message: "Your claim **#4521** was approved.\nThe payment is scheduled for Friday.",
       action_url: "https://tempo.app.bluetab.net/claims/4521",
       action_label: "View claim"
     }
+  )
+
+# The message with structure (Markdown), or written in HTML
+{:ok, queued} =
+  BluetabConnect.Markt.Rest.send_email(
+    to: "ana@bluetab.net",
+    variables: %{
+      title: "Monthly report",
+      message: "## Summary\n\n- Hours: 160\n- Absences: 2\n\nSee [the report](https://tempo.app.bluetab.net)."
+    }
+  )
+
+{:ok, queued} =
+  BluetabConnect.Markt.Rest.send_email(
+    to: "ana@bluetab.net",
+    variables: %{title: "Monthly report", message: %{html: "<p>Hours: <strong>160</strong></p>"}}
   )
 
 # One item for each recipient:
 # %{"id" => "7db83b7e-…", "to" => "ana@bluetab.net", "status" => "pending"}
 ```
 
-By default the email uses Markt's generic BIA notification template. Its variables are `title`
-and `message` (required), `app_name` (default `"BIA"`), and `action_url` / `action_label`
-(optional: with an `action_url` the email gets a button; `action_label` defaults to `"Open"`).
-Values are escaped by Markt, so they can never add markup. A `nil` value is left out, so an
-optional variable can be passed along as it is.
+By default the email uses Markt's generic BIA notification template: a bar on top (the Bluetab
+logo, the app name and a subtitle), a greeting, the message, and a footer.
+
+| Variable | Meaning |
+|----------|---------|
+| `:title` | **Required.** The subject of the email (`[App] Title`). It is **not shown in the body**: if you want a heading, write it in the message |
+| `:message` | **Required.** The body, in **Markdown** (headings, lists, tables, links, quotes, code). A plain string works as it always did: a line break stays a line break and a blank line starts a paragraph. For HTML give `%{html: "<p>…</p>"}`; `%{markdown: "…"}` says "Markdown" explicitly |
+| `:subtitle` | Text on the right of the bar on top, e.g. the section of the app. Optional |
+| `:app_name` | Next to the logo, in the subject and in the footer. Default `"BIA"` |
+| `:action_url` | If given, the email gets a button that links to it (`http(s)://` or `mailto:`) |
+| `:action_label` | Text of that button. Default `"Open"` |
+
+Everything except the message is plain text: Markt escapes it, so it can never add markup. The
+message is cleaned by Markt of whatever could run (scripts, forms, event handlers, `javascript:`
+links); a tag written inside Markdown is dropped and its text stays. Because the message is read
+as Markdown, `*`, `_`, a leading `#` or `-`, and `<tags>` in it mean something: when it includes
+text you did not write (a name, something a user typed), escape the Markdown characters with a
+backslash, or send the message as `%{html: …}` with that text escaped. A `nil` value is left out,
+so an optional variable can be passed along as it is.
 
 | Option | Meaning |
 |--------|---------|
@@ -521,7 +552,9 @@ a lost answer would send the email twice; that decision is the caller's.
 Errors: `{:error, {:invalid_request, errors}}` (nothing was sent; `errors` is a list of
 `%{"field" => "to[0]", "message" => "is not a valid email address"}`: Markt checks the
 recipients first, then the values of the variables, then the variables the template needs, and
-reports the first group that fails), `{:error, :template_not_found}`, `{:error, :unauthorized}`
+reports the first group that fails; a message can be refused as `"variables.message"` for being
+blank, for having nothing left once cleaned, or for being over 200,000 bytes),
+`{:error, :template_not_found}`, `{:error, :unauthorized}`
 (unknown, deleted or expired key), `{:error, :forbidden}` (the key lacks the `send_email` scope),
 `{:error, :send_email_error}` (anything else, including Markt being unreachable). An unknown
 option, or a recipient that is none of the forms above, raises `ArgumentError`. Failures are

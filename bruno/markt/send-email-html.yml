@@ -1,0 +1,45 @@
+info:
+  name: send-email-html
+  type: http
+  seq: 9
+
+http:
+  method: POST
+  url: "{{markt_url}}/api/v1/emails"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "to": "{{recipient_email}}",
+        "variables": {
+          "title": "Your October report",
+          "message": {
+            "html": "<p>Your <strong>October</strong> report is ready.</p><ul><li>Hours: 160</li><li>Absences: 2</li></ul><p><a href=\"https://tempo.app.bluetab.net\">Open Tempo</a></p>"
+          }
+        }
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "202"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  The message written in HTML: {"html": "..."}.
+
+  Markt cleans it before sending: scripts, forms, iframes, SVG, event handlers (onclick...), style and class attributes
+  and javascript: / data: links are removed. Paragraphs, lists, tables, links, images (https), bold, italics, quotes
+  and code stay. The look (fonts, colours, spacing) comes from the template, not from the HTML.
+
+  Use it when the text already is HTML, or when it includes something you did not write and must show as typed.
