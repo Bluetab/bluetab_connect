@@ -41,7 +41,9 @@ docs: |-
 
   Markt checks in this order and reports the first group that fails, so fix it and send again to see the next one:
     1. the recipients ("to", "to[0]", ...)
-    2. the values of the variables ("variables.action_url" must be an http(s) or mailto link; values must be strings)
+    2. the values of the variables ("variables.action_url" must be an http(s) or mailto link; values must be strings;
+       "variables.message" must not be blank, must have something left once cleaned (a message that is only a
+       script tag has nothing left) and is limited to 200,000 bytes)
     3. the variables the template needs and did not get ("variables.message is required by the template")
 
   This request has a bad recipient and a bad link, and only the recipient is reported. The Elixir client returns the

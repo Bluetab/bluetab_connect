@@ -1,0 +1,52 @@
+info:
+  name: group-sync
+  type: http
+  seq: 11
+
+http:
+  method: PUT
+  url: "{{markt_url}}/api/v1/groups/bruno-test-group"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Bruno test group",
+        "description": "Made by the Bruno collection of bluetab_connect",
+        "members": ["{{recipient_email}}"]
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: lt
+      value: "300"
+    - expression: res.body.data.slug
+      operator: eq
+      value: "bruno-test-group"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  Makes the group bruno-test-group the first time (201) and changes it after (200). Needs a key with the Manage groups
+  scope (Markt: Admin -> API keys). With "members" the group has exactly those people: the others are taken out, and so
+  is anyone who has left the company since. Safe to repeat: this is the call an app makes on start-up
+  (BluetabConnect.Markt.Rest.sync_group/2).
+
+  Here the only member is recipient_email. Everyone has to be a person of the organization: an address that is not one
+  is not added, comes back in "rejected" with the reason, and is noted in Admin -> Refused addresses.
+
+  Leave "visibility" out to keep what is set in Markt ("bcc": one email to each person, the default; "public": one email
+  to everyone, up to 50 people). Without "members" the people are left as they are.
+
+  The answer says what happened: { "data": { slug, name, visibility, managed_by, member_count, members }, "added": 1,
+  "removed": 0, "skipped": 0, "rejected": [] }.
+
+  The API cannot delete a group: when you are done, delete bruno-test-group in Markt (Email -> Groups).

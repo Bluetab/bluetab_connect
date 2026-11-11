@@ -34,5 +34,6 @@ settings:
   maxRedirects: 5
 
 docs: |-
-  Only the two required variables. The email has no button (no action_url) and comes from "BIA"
-  (the default app_name), with the subject "[BIA] Hello from Bruno".
+  Only the two required variables. The email has no subtitle and no button (no action_url) and comes from "BIA"
+  (the default app_name), with the subject "[BIA] Hello from Bruno". message is a plain string: Markdown that
+  happens to have no markup.

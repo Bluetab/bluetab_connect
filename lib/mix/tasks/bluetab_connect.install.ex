@@ -80,6 +80,7 @@ if Code.ensure_loaded?(Igniter) do
 
     - `MARKT_API_URL` - Markt API base URL (e.g. `https://markt.app.bluetab.net`)
     - `MARKT_API_KEY` - Markt API key (Bearer token, e.g. `markt_…`) with the `send_email` scope
+      (and `manage_groups` to keep groups of people up to date)
     """
 
     use Igniter.Mix.Task
@@ -602,7 +603,7 @@ if Code.ensure_loaded?(Igniter) do
 
     defp env_vars_for("markt_rest") do
       String.trim_trailing("""
-          # Markt.Rest (API key with the send_email scope)
+          # Markt.Rest (API key with the send_email scope, and manage_groups to keep groups up to date)
           MARKT_API_URL=https://markt.app.bluetab.net
           MARKT_API_KEY=your-markt-api-key
       """)
