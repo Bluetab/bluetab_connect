@@ -1,0 +1,39 @@
+info:
+  name: match-unprocessable
+  type: http
+  seq: 9
+
+http:
+  method: POST
+  url: "{{nova_url}}/api/matches"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "description": "zzqqxxyy qqzzyyxx",
+        "reference": "bruno-match-unprocessable"
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "422"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  A position that names no technology of the map and lists none answers 422 and keeps nothing. The errors are a map of
+  fields to messages (the first of the two shapes Nova uses for a 422):
+
+    { "errors": { "description": [ "does not name a technology the map has, and no requirement was given that it has" ] } }
+
+  The Elixir client returns {:error, {:invalid_request, %{"description" => ["does not name ..."]}}}.

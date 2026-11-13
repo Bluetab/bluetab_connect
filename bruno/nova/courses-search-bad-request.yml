@@ -1,0 +1,36 @@
+info:
+  name: courses-search-bad-request
+  type: http
+  seq: 10
+
+http:
+  method: GET
+  url: "{{nova_url}}/api/learning_objects/moocs/search?q={{course_query}}&limit=ten"
+  params:
+    - name: q
+      value: "{{course_query}}"
+      type: query
+    - name: limit
+      value: ten
+      type: query
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "400"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  A limit that is not a number answers 400 (a number outside 1 to 50 is brought into the range instead, not refused):
+
+    { "error": "limit must be a number" }
+
+  A q or an external_url that is a list or a map is a 400 too ("q must be a text"). The Elixir client returns
+  {:error, :bad_request} and logs Nova's text.

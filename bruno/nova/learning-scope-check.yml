@@ -1,0 +1,34 @@
+info:
+  name: learning-scope-check
+  type: http
+  seq: 14
+
+http:
+  method: GET
+  url: "{{nova_url}}/api/technologies"
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "403"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  Safety check, not a feature: a key that only has the Learning objects scope must be REFUSED here, on a matching endpoint.
+
+  Expected with a learning-objects-only key: 403 {"error":"Forbidden"}.
+  If this returns 200, the key also has the Matching scope (or the scope gate is broken): the assertion fails, which is the
+  check telling you. The Matching scope reads people's employee numbers and what the map knows of their technologies, so an
+  app that only needs courses must not have it.
+
+  The same 403 answers a key that HAS the Matching scope but whose user lacks the match_people permission (Nova refuses to
+  make such a key, but a user can lose the permission after): from the answer alone the two cannot be told apart.
+
+  Reading only: safe against prod.

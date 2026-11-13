@@ -1,0 +1,38 @@
+info:
+  name: matching-scope-check
+  type: http
+  seq: 13
+
+http:
+  method: GET
+  url: "{{nova_url}}/api/learning_objects/moocs/search?q={{course_query}}&limit=1"
+  params:
+    - name: q
+      value: "{{course_query}}"
+      type: query
+    - name: limit
+      value: "1"
+      type: query
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "403"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  Safety check, not a feature: a key that only has the Matching scope must be REFUSED here, on a learning endpoint.
+
+  Expected with a matching-only key: 403 {"error":"Forbidden"}.
+  If this returns 200, the key also has the Learning objects scope (or the scope gate is broken): the assertion fails, which
+  is the check telling you. Make a key with only Matching for an app that only ranks people, so that if it leaks it cannot
+  add courses to the catalog.
+
+  Reading only: safe against prod.

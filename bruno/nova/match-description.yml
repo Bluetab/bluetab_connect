@@ -1,0 +1,57 @@
+info:
+  name: match-description
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{nova_url}}/api/matches"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "description": "We need a backend engineer with 3+ years of {{technology}}. Experience with Kafka is a plus.",
+        "limit": 5,
+        "reference": "bruno-match-description"
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+    - expression: res.body.reference
+      operator: eq
+      value: "bruno-match-description"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  WRITES: THE MATCH IS KEPT. Nova stores every ranking it makes: who asked (the key's user), the description, the requirements,
+  the reference, the people named and the people returned, with their scores. The answer carries each person's employee number,
+  name, email and what the map knows of their technologies. Against prod this is real data about real people: change the
+  description to one you would be happy to see kept, and keep the reference, which says where the ranking came from.
+
+  Ranks everyone on the map who is still at the company for a position written in text, best 5
+  (BluetabConnect.Nova.Rest.match_people/1). Nova reads the description for the technologies of its map that it names, how
+  much each matters (a plus, nice to have, deseable make it "nice") and the years asked. A technology the map does not have is
+  not made up. Set technology in the environment to one of the names of the technologies request.
+
+  Needs the Matching scope, and a key whose user holds the match_people permission. 403 means the key lacks the scope OR its
+  user lacks the permission: Nova answers the same.
+
+  Response 200: { "match_id", "ranking_version", "weights_version", "reference", "requirements": [what Nova understood],
+  "unmatched": [names the map does not have], "unknown_people": [], "candidates": [ { "score", "person": { "id", "sap_id",
+  "name", "email", "profile" }, "matched", "missing", "coverage", "technologies_known", "breakdown": [...] } ] }.
+  A score of nothing is not one thing: with coverage "none" it means the map knows nothing of the person, and with "stated" it
+  means the person does not fit this position.
+
+  Nova answers 422 if neither the description nor a list of requirements names a technology of the map (nothing is kept).

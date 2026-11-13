@@ -1,0 +1,49 @@
+info:
+  name: match-requirements
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{nova_url}}/api/matches"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "requirements": [
+          { "technology": "{{technology}}", "importance": "must", "min_level": 3, "years": 2 },
+          { "technology": "Kafka", "importance": "nice" }
+        ],
+        "limit": 5,
+        "reference": "bruno-match-requirements"
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+    - expression: res.body.reference
+      operator: eq
+      value: "bruno-match-requirements"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  WRITES: THE MATCH IS KEPT, like match-description (who asked, the requirements, the reference, the people returned).
+  Against prod it is real data about real people.
+
+  The same ranking from a list of requirements that were already made, instead of a text. Only "technology" is needed in
+  each: a name or an alias of a technology of the map. "importance" is "must" or "nice", "min_level" the level asked (1 to 5)
+  and "years" the years of experience. A name the map does not have comes back in "unmatched" and the rest are used.
+
+  Nova does NOT refuse an importance, a level or years it cannot read: it takes "must" and no level or no years instead.
+  Check the "requirements" of the answer, which say what it understood.

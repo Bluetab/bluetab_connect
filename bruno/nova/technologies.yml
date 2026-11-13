@@ -1,0 +1,35 @@
+info:
+  name: technologies
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{nova_url}}/api/technologies"
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  The technologies of Nova's knowledge map, by name. Start here to check that the key works, and to see the names a
+  ranking is asked in (BluetabConnect.Nova.Rest.list_technologies/1). It names no person and Nova keeps nothing of the call.
+
+  Needs a Nova API key with the Matching scope whose user holds the match_people permission (Nova: Admin -> API keys),
+  set as nova_api_key.
+  - 401: key unknown, revoked or expired, or its user has left
+  - 403: the key lacks the Matching scope, OR its user lacks match_people. Nova answers the same for both, so check both.
+
+  Response: { "items": [ { "id", "name", "aliases", "category", "parents": [ { "id", "name" } ], "people" } ], "total": n }.
+  A requirement can name a technology by its name or by any alias. Keep the name, not the id: a technology that is merged into
+  another keeps its names as aliases of the other, but its id goes. "people" counts the people still at the company who have
+  said they know it (not those who know a part of it, nor who completed a course on it).

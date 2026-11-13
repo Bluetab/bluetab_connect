@@ -1,0 +1,19 @@
+name: nova_prod
+variables:
+  - name: nova_url
+    value: https://nova.app.bluetab.net
+  - secret: true
+    name: nova_api_key
+    description: A key with the Matching and/or the Learning objects scope. The scope-check requests need keys with only one of them.
+  - name: technology
+    value: Elixir
+    description: A name or an alias of a technology of the map (see the technologies request)
+  - name: person_email
+    value: ann@example.com
+  - name: person_sap_id
+    value: "1000"
+  - name: course_query
+    value: elixir
+  - name: course_name
+    value: ""
+    description: The name of the course that learning-object-create makes. Empty on purpose. Against prod that request makes a real (pending) learning object, and it answers 422 until you set this.

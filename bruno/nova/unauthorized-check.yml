@@ -1,0 +1,34 @@
+info:
+  name: unauthorized-check
+  type: http
+  seq: 15
+
+http:
+  method: GET
+  url: "{{nova_url}}/api/technologies"
+  headers:
+    - name: Authorization
+      value: Bearer nova_this_key_does_not_exist
+  auth: none
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "401"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  Safety check, not a feature: a key Nova does not know must be REFUSED.
+
+  Expected: 401 {"error":"unauthorized"}. If this returns 200, the endpoint is open to anyone. The same 401 answers no key,
+  an expired key, a key that was taken away, and a key whose user is no longer at the company (it works again if the user is
+  active again, until it expires). A key that exists but lacks the scope answers 403 {"error":"Forbidden"} instead.
+
+  Reading only: safe against prod. Nova answers 406 to a request that asks for a format other than JSON; the collection sends
+  Accept: application/json, as the Elixir client does.

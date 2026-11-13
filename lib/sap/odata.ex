@@ -4,7 +4,6 @@ defmodule BluetabConnect.Sap.Odata do
   """
 
   use GenServer
-  require Logger
 
   def start_link(config) do
     GenServer.start_link(__MODULE__, config, name: __MODULE__)

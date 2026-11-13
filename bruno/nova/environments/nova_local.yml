@@ -1,0 +1,18 @@
+name: nova_local
+variables:
+  - name: nova_url
+    value: http://localhost:4000
+  - secret: true
+    name: nova_api_key
+    description: A key with the Matching and/or the Learning objects scope. The scope-check requests need keys with only one of them.
+  - name: technology
+    value: Elixir
+    description: A name or an alias of a technology of the map (see the technologies request)
+  - name: person_email
+    value: ann@example.com
+  - name: person_sap_id
+    value: "1000"
+  - name: course_query
+    value: elixir
+  - name: course_name
+    value: Bruno check course
