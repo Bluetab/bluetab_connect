@@ -96,10 +96,10 @@ defmodule BluetabConnect.Nova.Rest do
       `%{technology: "Elixir", importance: "must", min_level: 3, years: 2}`. Only `:technology` is
       needed, a name or an alias of a technology of the map (see `list_technologies/1`); a name the
       map does not have comes back in `"unmatched"`. `:importance` is `"must"` or `"nice"`,
-      `:min_level` the level asked, from 1 to 5, and `:years` the years of experience. Atom or
-      string keys. **Nova does not refuse an importance, a level or years it cannot read**: it
-      takes `"must"` and no level or years instead. The `"requirements"` of the answer say what it
-      understood: check them
+      `:min_level` the level asked, a whole number from 1 to 5, and `:years` the years of
+      experience. Atom or string keys. **Nova does not refuse an importance, a level or years it
+      cannot read** (`3.0` is not a level, nor is `9`): it takes `"must"` and no level or years
+      instead. The `"requirements"` of the answer say what it understood: check them
     * `:people` - The people to rank, and no one else: a list of `%{sap_id: 1234}` (the employee
       number, a number or the same as text) or `%{email: "ana@bluetab.net"}` (in any case), one of
       the two for each person. Other keys of the map are not sent. Left out, everyone on the map who
@@ -353,8 +353,11 @@ defmodule BluetabConnect.Nova.Rest do
     * `{:error, :bad_request}` - A parameter Nova could not read: a `:limit` that is not a number,
       or a `:q` that is a list or a map. Nova's reason is in the log
     * `{:error, {:invalid_request, errors}}` - Neither `:q` nor `:external_url` is a text that is
-      not blank. Nova says it with a single text (`"provide q or external_url"`); `errors` is that
-      text as Nova files an error that belongs to no field: `%{"base" => ["provide q or external_url"]}`
+      not blank. This is the one `422` that Nova says with a bare text,
+      `{"error": "provide q or external_url"}`, and not with a map of fields. The client gives it
+      back in the shape of all the others, so that `errors` is always a map of field to messages:
+      `%{"base" => ["provide q or external_url"]}`. `"base"` is the name Nova itself uses in its
+      `errors` for an error that is about no field in particular
     * `{:error, :unauthorized}` - Unknown, expired or revoked key, or the key's user has left
     * `{:error, :forbidden}` - The key lacks the `learning_objects` scope
     * `{:error, :search_courses_error}` - Anything else, including Nova being unreachable
@@ -440,8 +443,9 @@ defmodule BluetabConnect.Nova.Rest do
     * `{:error, {:invalid_request, errors}}` - Nova refused the data (`422`); nothing was created.
       `errors` is what Nova sends, a map of field to messages, nested for the details:
       `%{"details" => %{"duration" => ["is required"]}}`, or
-      `%{"external_url" => ["a course with this address already exists"]}`. A body with no
-      `:type`, or a `:type` that is not one of the three, is refused this way too
+      `%{"external_url" => ["a course with this address already exists"]}`. An error that is about
+      no field in particular is under `"base"`. A body with no `:type`, or a `:type` that is not
+      one of the three, is refused this way too
     * `{:error, :bad_request}` - A parameter Nova could not read. Nova's reason is in the log
     * `{:error, :unauthorized}` - Unknown, expired or revoked key, or the key's user has left
     * `{:error, :forbidden}` - **Either** the key lacks the `learning_objects` scope, **or**, for a

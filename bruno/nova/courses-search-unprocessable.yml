@@ -27,4 +27,4 @@ docs: |-
     { "error": "provide q or external_url" }
 
   The Elixir client returns {:error, {:invalid_request, %{"base" => ["provide q or external_url"]}}}, so that errors is a map
-  in both shapes.
+  in both shapes. "base" is the name Nova itself uses in its "errors" for an error that is about no field in particular.

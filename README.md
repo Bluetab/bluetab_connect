@@ -752,7 +752,7 @@ you name, and answers for every one of them. Needs the **Matching** scope.
 | Option | Meaning |
 |--------|---------|
 | `:description` | The position, as text (English or Spanish). Nova reads it for the technologies of its map that it names, how much each matters (*nice to have*, *a plus*, *deseable* make it `"nice"`) and the years asked. A technology the map does not have is not made up |
-| `:requirements` | A list of maps `%{technology: name, importance: "must" \| "nice", min_level: 1..5, years: n}` (atom or string keys). Only `:technology` is needed: a name or an alias from `list_technologies/1`. One the map does not have comes back in `"unmatched"`. **Nova does not refuse an importance, level or years it cannot read**: it takes `"must"` and no level or years, so check the `"requirements"` of the answer, which say what it understood |
+| `:requirements` | A list of maps `%{technology: name, importance: "must" \| "nice", min_level: 1..5, years: n}` (atom or string keys). Only `:technology` is needed: a name or an alias from `list_technologies/1`. One the map does not have comes back in `"unmatched"`. **Nova does not refuse an importance, level or years it cannot read** (a level is a whole number from 1 to 5: `3.0` and `9` are not): it takes `"must"` and no level or years, so check the `"requirements"` of the answer, which say what it understood |
 | `:people` | Rank these people and no one else: `%{sap_id: 1234}` (the employee number, or the same as text) or `%{email: "ana@bluetab.net"}`, one of the two for each. Nothing else of a person is sent. Left out, everyone on the map is ranked; **`people: []` ranks no one** |
 | `:reference` | Your own words for what the ranking is for (a request number). Nova keeps it with the ranking and gives it back |
 | `:limit` | How many people at most (Nova's default: 20, or all of `:people`) |
@@ -850,8 +850,10 @@ counts of requests, completions or accesses. Nova also takes `query` as an alias
 does not (`search_courses(query: …)` raises `ArgumentError`).
 
 Errors: `{:error, {:invalid_request, errors}}` (neither `:q` nor `:external_url` is a text that is
-not blank: Nova says it with one text, `"provide q or external_url"`, which the client gives as
-`%{"base" => ["provide q or external_url"]}`), `{:error, :bad_request}` (a `:limit` that is not a
+not blank: this is the one `422` that Nova says with a bare text, `"provide q or external_url"`,
+and not with a map of fields, so the client gives it as `%{"base" => ["provide q or external_url"]}`
+like the others; `"base"` is the name Nova itself uses in its `errors` for an error that is about
+no field in particular), `{:error, :bad_request}` (a `:limit` that is not a
 number), `{:error, :unauthorized}`, `{:error, :forbidden}` (the key lacks the Learning objects
 scope) and `{:error, :search_courses_error}` (anything else).
 
@@ -910,7 +912,8 @@ for a talk, its user lacks `manage_learning_objects`) and `{:error, :create_lear
 learning object, so look for it before trying again).
 
 In all four functions `{:error, {:invalid_request, errors}}` is a `422`, and `errors` is a map of
-field to messages. Failures are logged with the HTTP status and Nova's error text, never with a
+field to messages (an error that is about no field in particular is under `"base"`, as Nova files
+it). Failures are logged with the HTTP status and Nova's error text, never with a
 response body, a description, the people or the key.
 
 ### SAP OData Client
