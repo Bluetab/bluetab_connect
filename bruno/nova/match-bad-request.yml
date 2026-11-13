@@ -1,0 +1,38 @@
+info:
+  name: match-bad-request
+  type: http
+  seq: 8
+
+http:
+  method: POST
+  url: "{{nova_url}}/api/matches"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {}
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "400"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  A request with nothing to rank answers 400 and keeps nothing (a refused request is not kept):
+
+    { "error": "description send a description of the position, or a list of requirements" }
+
+  The text says which parameter and why: "limit must be a number from 1 to 100", "people entry 2 must name one person, by
+  sap_id or by email", "reference must not contain control characters". The Elixir client returns {:error, :bad_request} and
+  logs Nova's text. The check of a 403 comes before this one: a key whose user lacks match_people never learns what was wrong
+  with its data.

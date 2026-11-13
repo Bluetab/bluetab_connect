@@ -1,0 +1,46 @@
+info:
+  name: courses-search
+  type: http
+  seq: 5
+
+http:
+  method: GET
+  url: "{{nova_url}}/api/learning_objects/moocs/search?q={{course_query}}&limit=5"
+  params:
+    - name: q
+      value: "{{course_query}}"
+      type: query
+    - name: limit
+      value: "5"
+      type: query
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  Courses that match a text (BluetabConnect.Nova.Rest.search_courses/1). q is matched, without regard to case, against the
+  name, the description, the external URL and the code, as written: a % or _ in it has no special meaning. Newest first.
+
+  Needs a Nova API key with the Learning objects scope (Nova: Admin -> API keys), set as nova_api_key. The key's user needs no
+  permission for it.
+  - 401: key unknown, revoked or expired, or its user has left
+  - 403: the key lacks the Learning objects scope
+
+  Response: { "items": [ { "id", "type": "mooc", "name", "description", "image", "language", "external_url", "publish_date",
+  "subject", "tags", "code", "duration", "real_cost", "reason", "certification", "title", "video", "creator_id", "published",
+  "inserted_at", "updated_at" } ], "total": n }. Courses that are hidden are never returned. Courses that are still pending
+  are, so a program can find one it created ("published": false); the result is not limited to the key's user. Nova gives no
+  counts of requests, completions or accesses.
+
+  limit is 20 by default; a number outside 1 to 50 is brought into the range, and one that is not a number is a 400.
+  Nova also takes "query" as an alias of q when q is absent: the client does not, use q.

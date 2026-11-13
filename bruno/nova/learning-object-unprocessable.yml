@@ -1,0 +1,41 @@
+info:
+  name: learning-object-unprocessable
+  type: http
+  seq: 12
+
+http:
+  method: POST
+  url: "{{nova_url}}/api/learning_objects"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "learning_object": {
+          "type": "mooc",
+          "name": "Bruno check: a course that must be refused"
+        }
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "422"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  A course without its details is refused with 422 and nothing is created (safe to run against prod):
+
+    { "errors": { "details": { "duration": [ "is required" ], "real_cost": [ "is required" ], "reason": [ "is required" ] } } }
+
+  The errors are a map of fields to messages, nested for the details. A body without "learning_object", or with a type that
+  is not mooc, talk or path, is a 422 as well. The Elixir client returns {:error, {:invalid_request, errors}} with that map.

@@ -1,0 +1,55 @@
+info:
+  name: match-people
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{nova_url}}/api/matches"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "description": "Data engineer with Spark and Python. Kafka is a plus.",
+        "people": [
+          { "email": "{{person_email}}" },
+          { "sap_id": "{{person_sap_id}}" }
+        ],
+        "reference": "bruno-match-people"
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+    - expression: res.body.reference
+      operator: eq
+      value: "bruno-match-people"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  WRITES: THE MATCH IS KEPT, with the people you name (their numbers and addresses are stored with the ranking, so that
+  "why was she not in it?" can be answered). Set person_email and person_sap_id to people you may rank. Against prod they are
+  real people.
+
+  Ranks only the people named, and no one else, every one of them answered for and best first: a person the map knows nothing
+  of scores nothing with coverage "none", they are not left out (BluetabConnect.Nova.Rest.match_people/1, option :people).
+  Each is { "sap_id": number } (a number may be sent as text) or { "email": text }, one of the two. With people, the limit is
+  all of them and the least score is 0 unless you send them.
+
+  A name that no one at the company answers to is never dropped in silence: it comes back in "unknown_people", as Nova
+  understood it ({ "sap_id": n } or { "email": text } trimmed and in lower case). So do the people who have left. With the
+  fake people of the environment, expect them there and no candidates.
+
+  The employee number is not unique in Nova: when two users share the one named, both are answered for, each with its own id
+  and email.

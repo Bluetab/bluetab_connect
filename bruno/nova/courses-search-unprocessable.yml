@@ -1,0 +1,30 @@
+info:
+  name: courses-search-unprocessable
+  type: http
+  seq: 11
+
+http:
+  method: GET
+  url: "{{nova_url}}/api/learning_objects/moocs/search"
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "422"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  A search with nothing to look for (neither q nor external_url is a text that is not blank) answers 422. This is the SECOND
+  shape Nova uses for a 422, a single text and not a map of fields:
+
+    { "error": "provide q or external_url" }
+
+  The Elixir client returns {:error, {:invalid_request, %{"base" => ["provide q or external_url"]}}}, so that errors is a map
+  in both shapes.

@@ -1,6 +1,6 @@
 # BluetabConnect
 
-**BluetabConnect** is an Elixir library that provides client wrappers for connecting to external enterprise systems. It offers a unified interface for interacting with PX (Project Management platform), Spend (expenses), Tempo (holiday calendars), Gedes (briefings, evaluations, careers and categories), Markt (email notifications), and SAP Business One through both REST/OData and SOAP protocols.
+**BluetabConnect** is an Elixir library that provides client wrappers for connecting to external enterprise systems. It offers a unified interface for interacting with PX (Project Management platform), Spend (expenses), Tempo (holiday calendars), Gedes (briefings, evaluations, careers and categories), Markt (email notifications), Nova (matching people to positions, and the learning catalog), and SAP Business One through both REST/OData and SOAP protocols.
 
 ## Features
 
@@ -9,6 +9,7 @@
 - **Tempo REST Client** - Connect to Tempo app for holiday calendars (no SAP SuccessFactors credentials needed)
 - **Gedes REST Client** - Read briefings, evaluations, careers and categories from the Gedes app (read-only, scoped API key)
 - **Markt REST Client** - Send email notifications through the Markt app, with its BIA template (scoped API key)
+- **Nova REST Client** - Rank the people of Nova's knowledge map for a position and read its technologies, and look up and add courses of its learning catalog (scoped API key, two scopes)
 - **SAP OData Client** - Query SAP Business One data using OData protocol
 - **SAP SOAP Client** - Comprehensive time entry management and approval workflows for SAP Business One
 - **SAP SuccessFactors Client** - Query SAP SuccessFactors OData APIs
@@ -106,6 +107,30 @@ config = [
 ]
 
 {:ok, _pid} = BluetabConnect.Markt.Rest.start_link(config)
+```
+
+### Nova REST Client
+
+The Nova client requires a base URL and an API key. An admin makes the key in Nova under
+**Admin → API keys** (`/admin/api_keys`), **for an existing user**, with the scopes it needs, and
+sees the secret once. The key does what its user may do, within its scopes:
+
+- **Matching** (`matching`) for `match_people/1` and `list_technologies/1`. Nova makes this key
+  only for a user who holds the `match_people` permission (the base role *People matcher* has it).
+  Its answers carry people's employee numbers, names and emails and what the map knows of their
+  technologies, so give it only to apps that need them.
+- **Learning objects** (`learning_objects`) for `search_courses/1` and `create_learning_object/1`.
+  Creating a talk also needs the `manage_learning_objects` permission of the key's user.
+
+The scopes are independent: a key with one of them is refused on the endpoints of the other.
+
+```elixir
+config = [
+  base_url: "https://nova.app.bluetab.net",
+  api_key: "nova_your_api_key_here"
+]
+
+{:ok, _pid} = BluetabConnect.Nova.Rest.start_link(config)
 ```
 
 ### SAP OData Client
@@ -656,6 +681,238 @@ that is not a non-empty string or a map with an `:email`, and an unknown option,
 `ArgumentError`. Failures are logged with the HTTP status and Markt's error text, never with the
 addresses or the key.
 
+### Nova REST Client
+
+Nova keeps Bluetab's learning catalog (courses, talks and paths) and a map of who knows which
+technologies. The client covers both scopes of its API. Contract: Nova's `specs/api/index.md`, `matching.md` and
+`learning.md`. Nova has no version in the path, and its lists come whole as
+`{"items": [...], "total": n}`, so there is nothing to page.
+
+| Function | Endpoint | Key scope | The key's user must also hold |
+|----------|----------|-----------|-------------------------------|
+| `match_people/1` | `POST /api/matches` | Matching | `match_people` |
+| `list_technologies/1` | `GET /api/technologies` | Matching | `match_people` |
+| `search_courses/1` | `GET /api/learning_objects/moocs/search` | Learning objects | - |
+| `create_learning_object/1` | `POST /api/learning_objects` | Learning objects | `manage_learning_objects`, to create a talk |
+
+**A `403` is the same whether the key lacks the scope or its user lacks the permission**, so when
+one comes, check both (the client's log line names both). A key with only one scope is refused on
+the endpoints of the other.
+
+#### Match People
+
+Ranks the people of the map for a position, from a text, from a list of requirements already made,
+or from both (what is listed wins, and the text adds the technologies it names). By default it
+ranks everyone on the map who is still at the company; with `:people` it ranks exactly the people
+you name, and answers for every one of them. Needs the **Matching** scope.
+
+```elixir
+# From a description: everyone on the map who is still at the company, the best 20
+{:ok, answer} =
+  BluetabConnect.Nova.Rest.match_people(
+    description: "We need a backend engineer with 3+ years of Elixir. Kafka is a plus.",
+    reference: "REQ-1042"
+  )
+
+# From a list of requirements
+{:ok, answer} =
+  BluetabConnect.Nova.Rest.match_people(
+    requirements: [
+      %{technology: "Elixir", importance: "must", min_level: 3, years: 3},
+      %{technology: "Kafka", importance: "nice"}
+    ]
+  )
+
+# Only the people who are free: exactly those, best first, none of them left out
+{:ok, answer} =
+  BluetabConnect.Nova.Rest.match_people(
+    description: "Data engineer, Spark and Python.",
+    people: [%{sap_id: 1234}, %{email: "bob@bluetab.net"}],
+    reference: "REQ-1043"
+  )
+
+# The answer, as Nova sends it (a map with string keys):
+# %{"match_id" => "0b5d6c1e-…", "ranking_version" => 2, "weights_version" => 2,
+#   "reference" => "REQ-1043",
+#   "requirements" => [%{"technology" => %{"id" => "…", "name" => "Spark"}, "importance" => "must",
+#                        "min_level" => nil, "years" => nil, "mention" => "Spark", "source" => "text"}, …],
+#   "unmatched" => [],
+#   "unknown_people" => [%{"sap_id" => 4242}],
+#   "candidates" => [
+#     %{"score" => 0.82,
+#       "person" => %{"id" => "…", "sap_id" => 1234, "name" => "Ana García",
+#                     "email" => "ana@bluetab.net", "profile" => "/users/…"},
+#       "matched" => 2, "missing" => [], "coverage" => "stated", "technologies_known" => 14,
+#       "breakdown" => [%{"technology" => "Spark", "importance" => "must", "satisfaction" => 0.9,
+#                         "weight" => 0.9, "proficiency" => 4, "confidence" => 0.8, "years" => 3.0,
+#                         "recency" => 1.0, "sources" => ["self", "course"], "via" => nil}, …]},
+#     …]}
+```
+
+| Option | Meaning |
+|--------|---------|
+| `:description` | The position, as text (English or Spanish). Nova reads it for the technologies of its map that it names, how much each matters (*nice to have*, *a plus*, *deseable* make it `"nice"`) and the years asked. A technology the map does not have is not made up |
+| `:requirements` | A list of maps `%{technology: name, importance: "must" \| "nice", min_level: 1..5, years: n}` (atom or string keys). Only `:technology` is needed: a name or an alias from `list_technologies/1`. One the map does not have comes back in `"unmatched"`. **Nova does not refuse an importance, level or years it cannot read**: it takes `"must"` and no level or years, so check the `"requirements"` of the answer, which say what it understood |
+| `:people` | Rank these people and no one else: `%{sap_id: 1234}` (the employee number, or the same as text) or `%{email: "ana@bluetab.net"}`, one of the two for each. Nothing else of a person is sent. Left out, everyone on the map is ranked; **`people: []` ranks no one** |
+| `:reference` | Your own words for what the ranking is for (a request number). Nova keeps it with the ranking and gives it back |
+| `:limit` | How many people at most (Nova's default: 20, or all of `:people`) |
+| `:min_score` | The least score listed, 0 to 1 (Nova's default: `0.02`, or `0` with `:people`, so that every person named is listed) |
+
+`:description` or `:requirements` is needed. `nil` means not given. Nova checks every value (sizes,
+ranges, texts) and says which one is wrong; the client does not repeat those checks.
+
+- **A ranking helps a person decide and decides nothing.** Every candidate comes with the reasons (a
+  `"breakdown"` for each requirement: how sure Nova is, how recent, and where it comes from:
+  `"sources"` are any of `"self"`, `"staff"`, `"document"`, `"job"`, `"course"`, `"project"`,
+  `"certification"`, and `"via"` the part of the technology it comes from, such as Azure for Event
+  Hubs), so whoever reads it can disagree. The same position against the same map always gives the
+  same ranking. Nova does not read availability, seniority, language or location: combine the
+  ranking with those in the way your decision needs.
+- **A score of nothing is not one thing.** `"coverage"` is how much the map knows of the person,
+  whatever the position asks: with `"none"` (nothing about their technologies) or `"exposure"` (a
+  course, project work or a certification, but nothing they said) a score of nothing is *not
+  known* and says nothing against them; with `"stated"` (they, or someone who keeps their CV, said
+  they know a technology) it means *not for this position*.
+- **`"unknown_people"`**: the names of `:people` that no one at the company answers to (or who has
+  left), each as Nova understood it: `%{"sap_id" => n}` or `%{"email" => text}` trimmed and in lower
+  case. A name is never dropped in silence. The employee number is not unique in Nova: when two
+  users share the one you named, both are answered for, each with its own `"id"` and `"email"`.
+- **The answer is about people, and the call is kept.** It carries employee numbers, names, emails
+  and what the map knows of their technologies: treat it as personal data. Nova stores every
+  ranking (who asked, the description, the people named and the people returned), so call it for a
+  real decision, not to try things out. For that reason the client **never retries** it, whatever
+  `:req_options` say: a retry after a lost answer would keep a second ranking. A request Nova refuses
+  keeps nothing.
+- Errors: `{:error, {:invalid_request, errors}}` (the position names no technology of the map and
+  lists none: `%{"description" => ["does not name a technology the map has, …"]}`),
+  `{:error, :bad_request}` (a parameter Nova could not read: nothing to rank, a value out of range,
+  an entry of `:people` that does not name one person; its reason is in the log),
+  `{:error, :unauthorized}`, `{:error, :forbidden}` (the key lacks the Matching scope, **or** its user
+  lacks `match_people`) and `{:error, :match_people_error}` (anything else, including Nova being
+  unreachable; the client does not know whether Nova kept the ranking). An unknown option, `:people`
+  or `:requirements` that is not a list, and an entry that is not a map with a `:sap_id` or an
+  `:email` (or a `:technology`) raise `ArgumentError`, without calling Nova; the message says which
+  entry and never shows it. Failures are logged with the HTTP status and Nova's error text, never
+  with the description, the people, the answer or the key.
+
+#### List Technologies
+
+The technologies of the map, by name, for a program that lets someone choose what a position asks
+for. A ranking is asked in these names. It names no person and Nova keeps nothing of the call.
+Needs the **Matching** scope.
+
+```elixir
+{:ok, technologies} = BluetabConnect.Nova.Rest.list_technologies()
+
+# Each item:
+# %{"id" => "…", "name" => "Event Hubs", "aliases" => ["Azure Event Hubs"], "category" => "cloud",
+#   "parents" => [%{"id" => "…", "name" => "Azure"}], "people" => 7}
+```
+
+`"aliases"` are other names that find it (a requirement names a technology by either);
+`"category"` is what it is filed under (`"cloud"`, `"language"`, `"database"`…) or `nil`;
+`"parents"` is what it belongs to (the ranking counts whoever knows a part of a technology when the
+whole is asked for); `"people"` is how many people still at the company have said they know it.
+**Keep the `"name"`, not the `"id"`**: a technology that is merged into another keeps its names as
+aliases of the other, so a name you kept still finds it, but its id goes. It takes no options.
+Errors: `{:error, :unauthorized}`, `{:error, :forbidden}` (the key lacks the Matching scope, **or**
+its user lacks `match_people`) and `{:error, :list_technologies_error}` (anything else).
+
+#### Search Courses
+
+Looks for courses by a text or by an exact address. Needs the **Learning objects** scope; the key's
+user needs no permission.
+
+```elixir
+{:ok, courses} = BluetabConnect.Nova.Rest.search_courses(q: "elixir")
+{:ok, courses} = BluetabConnect.Nova.Rest.search_courses(q: "elixir", limit: 5)
+
+# Has this course been added already?
+{:ok, found} =
+  BluetabConnect.Nova.Rest.search_courses(external_url: "https://example.com/elixir")
+
+# Each item, newest first:
+# %{"id" => "…", "type" => "mooc", "name" => "Elixir for the impatient", "description" => "…",
+#   "image" => "…", "language" => "en", "external_url" => "https://example.com/elixir",
+#   "publish_date" => "2026-03-01", "subject" => "Programming", "tags" => ["elixir"],
+#   "code" => 17, "duration" => 12.0, "real_cost" => 0.0, "reason" => "…", "certification" => false,
+#   "title" => nil, "video" => nil, "creator_id" => "…", "published" => true,
+#   "inserted_at" => "2026-03-01T09:30:00Z", "updated_at" => "2026-03-01T09:30:00Z"}
+```
+
+`:q` is matched without regard to case against the name, the description, the external URL and the
+code, as written (a `%` or `_` in it means nothing special); `:external_url` matches exactly; with
+both, a course must match both. `:limit` is 20 by default, and Nova brings a number outside its range
+into the range. At least one of `:q` and `:external_url` has to be a text that is not blank. Hidden
+courses are never returned. **Courses that are still pending are**, so a program can find one it
+created (`"published" => false`), and the result is not limited to the key's user. Nova gives no
+counts of requests, completions or accesses. Nova also takes `query` as an alias of `q`; the client
+does not (`search_courses(query: …)` raises `ArgumentError`).
+
+Errors: `{:error, {:invalid_request, errors}}` (neither `:q` nor `:external_url` is a text that is
+not blank: Nova says it with one text, `"provide q or external_url"`, which the client gives as
+`%{"base" => ["provide q or external_url"]}`), `{:error, :bad_request}` (a `:limit` that is not a
+number), `{:error, :unauthorized}`, `{:error, :forbidden}` (the key lacks the Learning objects
+scope) and `{:error, :search_courses_error}` (anything else).
+
+#### Create a Learning Object
+
+Adds a course, a talk or a path to the catalog. Needs the **Learning objects** scope; to create a
+talk, the key's user also needs `manage_learning_objects`.
+
+```elixir
+{:ok, course} =
+  BluetabConnect.Nova.Rest.create_learning_object(
+    type: :mooc,
+    name: "Elixir for the impatient",
+    description: "A fast tour of the language",
+    external_url: "https://example.com/elixir",
+    language: "en",
+    publish_date: ~D[2026-03-01],
+    subject: "Programming",
+    tags: ["elixir", "beginner"],
+    details: %{duration: 12, real_cost: 0, reason: "It is how we start every Elixir project."}
+  )
+
+# A path of courses, in order (a map works too)
+{:ok, path} =
+  BluetabConnect.Nova.Rest.create_learning_object(%{
+    type: :path,
+    name: "Backend in Elixir",
+    details: %{steps: [course["id"], other_course["id"]]}
+  })
+
+# The learning object as Nova sends it: the shape of a course of `search_courses/1`, with the
+# details of its type, and "published" => false
+```
+
+| Field | Meaning |
+|-------|---------|
+| `:type` | **Required.** `:mooc` (a course), `:talk` or `:path`. The API has no blog |
+| `:name` | **Required** |
+| `:description`, `:image`, `:language`, `:external_url`, `:publish_date`, `:subject`, `:tags` | Optional. `:publish_date` is a `Date` or `"YYYY-MM-DD"` |
+| `:details` | The details of the type. A course needs `duration` (hours), `real_cost` (euros) and `reason`, and can have `certification`, `title` and `video`. A talk has `subtype` (`"talk"`, `"lightning_talk"` or `"academy_course"`), `speakers` (user ids) and `video_url`. A path has `steps`, learning object ids in order |
+
+It is created **pending**, with the owner of the key as its creator, and stays so until it is
+approved in Nova; the API cannot approve, change, hide or delete anything. **Creating is not
+idempotent**: the same call twice makes two learning objects (except a course with an
+`:external_url`, which Nova refuses the second time), so look for the course first with
+`search_courses/1`. For that reason the client **never retries** it, whatever `:req_options` say.
+A field that is not in the table (a typo, or `:creator_id`, which Nova would ignore) raises
+`ArgumentError`.
+
+Errors: `{:error, {:invalid_request, errors}}` (Nova refused the data and made nothing; `errors` is
+a map of fields to messages, nested for the details: `%{"details" => %{"duration" => ["is required"]}}`,
+`%{"external_url" => ["a course with this address already exists"]}`), `{:error, :bad_request}`,
+`{:error, :unauthorized}`, `{:error, :forbidden}` (the key lacks the Learning objects scope, **or**,
+for a talk, its user lacks `manage_learning_objects`) and `{:error, :create_learning_object_error}`
+(anything else, including Nova being unreachable: the client does not know whether it made the
+learning object, so look for it before trying again).
+
+In all four functions `{:error, {:invalid_request, errors}}` is a `422`, and `errors` is a map of
+field to messages. Failures are logged with the HTTP status and Nova's error text, never with a
+response body, a description, the people or the key.
+
 ### SAP OData Client
 
 The SAP OData client provides methods to query SAP Business One data with flexible filtering and pagination:
@@ -918,6 +1175,7 @@ All clients are implemented as GenServers that maintain persistent connections a
 - **Tempo REST Client**: Maintains HTTP client with API key (Bearer) authentication
 - **Gedes REST Client**: Maintains HTTP client with API key (Bearer) authentication
 - **Markt REST Client**: Maintains HTTP client with API key (Bearer) authentication
+- **Nova REST Client**: Maintains HTTP client with API key (Bearer) authentication
 - **SAP OData Client**: Maintains HTTP client with basic authentication and custom SSL configuration
 - **SAP SOAP Client**: Manages WSDL cache and authentication tokens
 

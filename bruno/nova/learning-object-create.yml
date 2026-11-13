@@ -1,0 +1,62 @@
+info:
+  name: learning-object-create
+  type: http
+  seq: 7
+
+http:
+  method: POST
+  url: "{{nova_url}}/api/learning_objects"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "learning_object": {
+          "type": "mooc",
+          "name": "{{course_name}}",
+          "description": "Made by the Bruno collection of bluetab_connect. It is pending and can be ignored.",
+          "language": "en",
+          "subject": "Bruno check",
+          "tags": ["bruno"],
+          "details": {
+            "duration": 1,
+            "real_cost": 0,
+            "reason": "A check of the API client. It is not a real course."
+          }
+        }
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+    - expression: res.body.published
+      operator: eq
+      value: "false"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  WRITES: MAKES A LEARNING OBJECT. Each run makes another one: creating is not idempotent (the same body twice makes two
+  learning objects, except for a course with an external_url, which the second time is refused). It is created PENDING, with
+  the owner of the key as its creator, and it stays in Nova until an admin deals with it: the API cannot change, hide or
+  delete a learning object, and it cannot approve one. A pending course is in no list of the catalog, but courses-search finds
+  it. course_name is empty in nova_prod on purpose: against prod this request answers 422 until you set it, so that it cannot
+  add a course by accident.
+
+  BluetabConnect.Nova.Rest.create_learning_object/1. Needs the Learning objects scope. The user of the key is the creator
+  (creator_id and hidden_at in the body are ignored). A course needs details.duration (hours), details.real_cost (euros) and
+  details.reason; a talk (type "talk", with details.subtype, speakers and video_url) also needs the manage_learning_objects
+  permission for the key's user, and a path (type "path") has details.steps, a list of learning object ids in order. The API
+  has no blog.
+  - 201: the learning object, in the shape of a course of courses-search, with "published": false
+  - 403: the key lacks the Learning objects scope, OR (for a talk) its user lacks manage_learning_objects: the same answer
+  - 422: { "errors": { "field": [ "message" ] } }, nested for the details
