@@ -72,11 +72,87 @@ defmodule Mix.Tasks.BluetabConnect.InstallTest do
     end
   end
 
+  describe "nova_rest" do
+    test "reads the Nova URL and API key at runtime" do
+      igniter = install(["nova_rest"])
+      runtime = content(igniter, "config/runtime.exs")
+
+      assert runtime =~ ~s|config :demo, :nova,|
+      assert runtime =~ ~s|base_url: System.fetch_env!("NOVA_API_URL")|
+      assert runtime =~ ~s|api_key: System.fetch_env!("NOVA_API_KEY")|
+    end
+
+    test "keeps the config out of the test environment" do
+      runtime = "nova_rest" |> List.wrap() |> install() |> content("config/runtime.exs")
+
+      [_before, guarded] = String.split(runtime, "if config_env() != :test do", parts: 2)
+      assert guarded =~ ":nova,"
+    end
+
+    test "supervises the client only when it is configured" do
+      application = ["nova_rest"] |> install() |> content("lib/demo/application.ex")
+
+      assert application =~
+               "maybe_child(BluetabConnect.Nova.Rest, Application.get_env(:demo, :nova))"
+
+      assert application =~ "defp maybe_child(_module, nil), do: []"
+    end
+
+    test "chains with the other connectors" do
+      application =
+        ["markt_rest", "nova_rest"] |> install() |> content("lib/demo/application.ex")
+
+      assert application =~
+               "maybe_child(BluetabConnect.Markt.Rest, Application.get_env(:demo, :markt)) ++"
+
+      assert application =~
+               "maybe_child(BluetabConnect.Nova.Rest, Application.get_env(:demo, :nova))"
+    end
+
+    test "is configured next to Markt without either mistaken for the other" do
+      runtime = ["markt_rest", "nova_rest"] |> install() |> content("config/runtime.exs")
+
+      assert count(runtime, "config :demo, :markt,") == 1
+      assert count(runtime, "config :demo, :nova,") == 1
+      assert runtime =~ ~s|System.fetch_env!("MARKT_API_URL")|
+      assert runtime =~ ~s|System.fetch_env!("NOVA_API_URL")|
+    end
+
+    test "does nothing the second time" do
+      igniter = install(["nova_rest"])
+      again = install(["nova_rest"], igniter)
+
+      assert count(content(again, "config/runtime.exs"), "config :demo, :nova,") == 1
+      assert count(content(again, "lib/demo/application.ex"), "BluetabConnect.Nova.Rest") == 1
+    end
+
+    test "tells which environment variables to set, and the scopes the key needs" do
+      igniter =
+        phx_test_project(app_name: :demo)
+        |> Igniter.compose_task("bluetab_connect.install", ["nova_rest"])
+
+      notice = Enum.join(igniter.notices, "\n")
+      assert notice =~ "NOVA_API_URL"
+      assert notice =~ "NOVA_API_KEY"
+      assert notice =~ "matching"
+      assert notice =~ "match_people"
+      assert notice =~ "learning_objects"
+    end
+  end
+
   test "an unknown connector lists markt_rest among the valid ones" do
     igniter =
       phx_test_project(app_name: :demo)
       |> Igniter.compose_task("bluetab_connect.install", ["nope"])
 
     assert Enum.any?(igniter.issues, &(&1 =~ "markt_rest"))
+  end
+
+  test "an unknown connector lists nova_rest among the valid ones" do
+    igniter =
+      phx_test_project(app_name: :demo)
+      |> Igniter.compose_task("bluetab_connect.install", ["nope"])
+
+    assert Enum.any?(igniter.issues, &(&1 =~ "nova_rest"))
   end
 end

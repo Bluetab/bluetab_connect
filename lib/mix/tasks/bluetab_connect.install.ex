@@ -1,6 +1,6 @@
 if Code.ensure_loaded?(Igniter) do
   defmodule Mix.Tasks.BluetabConnect.Install do
-    @shortdoc "Installs BluetabConnect connectors (px_rest, sap_soap, sap_odata, sap_ssff, spend_rest, tempo_rest, gedes_rest, markt_rest)"
+    @shortdoc "Installs BluetabConnect connectors (px_rest, sap_soap, sap_odata, sap_ssff, spend_rest, tempo_rest, gedes_rest, markt_rest, nova_rest)"
 
     @moduledoc """
     Installs one or more BluetabConnect connectors into a Phoenix application.
@@ -18,10 +18,11 @@ if Code.ensure_loaded?(Igniter) do
     - `tempo_rest` - Tempo REST API client (`BluetabConnect.Tempo.Rest`)
     - `gedes_rest` - Gedes REST API client (`BluetabConnect.Gedes.Rest`)
     - `markt_rest` - Markt REST API client (`BluetabConnect.Markt.Rest`)
+    - `nova_rest` - Nova REST API client (`BluetabConnect.Nova.Rest`)
 
     ## Usage
 
-        mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest gedes_rest markt_rest
+        mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest gedes_rest markt_rest nova_rest
 
     ## What this installer does
 
@@ -81,18 +82,26 @@ if Code.ensure_loaded?(Igniter) do
     - `MARKT_API_URL` - Markt API base URL (e.g. `https://markt.app.bluetab.net`)
     - `MARKT_API_KEY` - Markt API key (Bearer token, e.g. `markt_…`) with the `send_email` scope
       (and `manage_groups` to keep groups of people up to date)
+
+    ### nova_rest
+
+    - `NOVA_API_URL` - Nova API base URL (e.g. `https://nova.app.bluetab.net`)
+    - `NOVA_API_KEY` - Nova API key (Bearer token, e.g. `nova_…`) with the `matching` scope (to
+      rank people for a position: its user must hold the `match_people` permission, and the
+      answers carry employee numbers) and/or the `learning_objects` scope (to look up and add
+      courses)
     """
 
     use Igniter.Mix.Task
 
-    @valid_connectors ~w(px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest gedes_rest markt_rest)
+    @valid_connectors ~w(px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest gedes_rest markt_rest nova_rest)
 
     @impl Igniter.Mix.Task
     def info(_argv, _composing_task) do
       %Igniter.Mix.Task.Info{
         group: :bluetab_connect,
         example:
-          "mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest gedes_rest markt_rest"
+          "mix bluetab_connect.install px_rest sap_soap sap_odata sap_ssff spend_rest tempo_rest gedes_rest markt_rest nova_rest"
       }
     end
 
@@ -195,6 +204,7 @@ if Code.ensure_loaded?(Igniter) do
     defp config_key("tempo_rest"), do: "tempo"
     defp config_key("gedes_rest"), do: "gedes"
     defp config_key("markt_rest"), do: "markt"
+    defp config_key("nova_rest"), do: "nova"
 
     defp runtime_config_block("px_rest", app_name) do
       String.trim_trailing("""
@@ -265,6 +275,14 @@ if Code.ensure_loaded?(Igniter) do
         config :#{app_name}, :markt,
           base_url: System.fetch_env!("MARKT_API_URL"),
           api_key: System.fetch_env!("MARKT_API_KEY")
+      """)
+    end
+
+    defp runtime_config_block("nova_rest", app_name) do
+      String.trim_trailing("""
+        config :#{app_name}, :nova,
+          base_url: System.fetch_env!("NOVA_API_URL"),
+          api_key: System.fetch_env!("NOVA_API_KEY")
       """)
     end
 
@@ -355,6 +373,9 @@ if Code.ensure_loaded?(Igniter) do
     defp child_exists?(content, "markt_rest"),
       do: String.contains?(content, "BluetabConnect.Markt.Rest")
 
+    defp child_exists?(content, "nova_rest"),
+      do: String.contains?(content, "BluetabConnect.Nova.Rest")
+
     defp child_line("px_rest", app_name),
       do: "maybe_child(BluetabConnect.Px.Rest, Application.get_env(:#{app_name}, :px))"
 
@@ -379,6 +400,9 @@ if Code.ensure_loaded?(Igniter) do
 
     defp child_line("markt_rest", app_name),
       do: "maybe_child(BluetabConnect.Markt.Rest, Application.get_env(:#{app_name}, :markt))"
+
+    defp child_line("nova_rest", app_name),
+      do: "maybe_child(BluetabConnect.Nova.Rest, Application.get_env(:#{app_name}, :nova))"
 
     defp ensure_maybe_child(content) do
       if String.contains?(content, "defp maybe_child") do
@@ -606,6 +630,15 @@ if Code.ensure_loaded?(Igniter) do
           # Markt.Rest (API key with the send_email scope, and manage_groups to keep groups up to date)
           MARKT_API_URL=https://markt.app.bluetab.net
           MARKT_API_KEY=your-markt-api-key
+      """)
+    end
+
+    defp env_vars_for("nova_rest") do
+      String.trim_trailing("""
+          # Nova.Rest (API key with the matching scope, whose user holds the match_people permission,
+          # and/or the learning_objects scope). Give matching only to apps that need employee numbers.
+          NOVA_API_URL=https://nova.app.bluetab.net
+          NOVA_API_KEY=your-nova-api-key
       """)
     end
   end
